@@ -39,11 +39,11 @@ Loop:
 		select {
 		case <-tickerPoll.C:
 			runtime.ReadMemStats(&runtimeState)
-			utils.SetMetrics(&currentRntState, &currentAddState, runtimeState, pollCouter)
+			metrics.SetMetrics(&currentRntState, &currentAddState, runtimeState, pollCouter)
 			pollCouter++
 		case <-tickerReport.C:
-			utils.SendMetrics(cfg, currentRntState, client)
-			utils.SendMetrics(cfg, currentAddState, client)
+			metrics.SendMetrics(cfg, currentRntState, client)
+			metrics.SendMetrics(cfg, currentAddState, client)
 		case <-sigChan:
 			log.Println("close program")
 			break Loop
