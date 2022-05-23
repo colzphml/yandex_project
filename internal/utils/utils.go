@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
@@ -10,7 +11,52 @@ import (
 	"strings"
 
 	"github.com/colzphml/yandex_project/internal/metrics"
+	"gopkg.in/yaml.v3"
 )
+
+type AgentConfig struct {
+	ServerAdress   string
+	ServerPort     int
+	PollInterval   int
+	ReportInterval int
+}
+
+func NewAgentConfig() AgentConfig {
+	agentConfig := AgentConfig{}
+	agentConfig.PollInterval = 2
+	agentConfig.ReportInterval = 10
+	agentConfig.ServerAdress = "127.0.0.1"
+	agentConfig.ServerPort = 8080
+	return agentConfig
+}
+
+func LoadConfig() AgentConfig {
+	cfg := NewAgentConfig()
+	yfile, err := ioutil.ReadFile("agent_config.yaml")
+	if err != nil {
+		log.Println(err.Error())
+		return cfg
+	}
+	data := make(map[string]interface{})
+	err = yaml.Unmarshal(yfile, &data)
+	if err != nil {
+		log.Println(err.Error())
+		return cfg
+	}
+	if val, ok := data["pollInterval"]; ok {
+		cfg.PollInterval = val.(int)
+	}
+	if val, ok := data["reportInterval"]; ok {
+		cfg.ReportInterval = val.(int)
+	}
+	if val, ok := data["serverPort"]; ok {
+		cfg.ServerPort = val.(int)
+	}
+	if val, ok := data["serverAdress"]; ok {
+		cfg.ServerAdress = val.(string)
+	}
+	return cfg
+}
 
 func getRuntimeMetric(m runtime.MemStats, field string) metrics.Gauge {
 	r := reflect.ValueOf(m)
@@ -48,17 +94,17 @@ func SetMetrics(runtime *metrics.RuntimeMetrics, addit *metrics.AdditionalMetric
 	addit.RandomValue = metrics.Gauge(rand.Float64())
 }
 
-func SendMetrics(input interface{}, client http.Client) {
+func SendMetrics(cfg AgentConfig, input interface{}, client http.Client) {
 	var r reflect.Value
-	switch input.(type) {
+	switch input := input.(type) {
 	case metrics.RuntimeMetrics:
-		metrics := input.(metrics.RuntimeMetrics)
+		metrics := input
 		r = reflect.ValueOf(&metrics)
 	case metrics.AdditionalMetrics:
-		metrics := input.(metrics.AdditionalMetrics)
+		metrics := input
 		r = reflect.ValueOf(&metrics)
 	}
-	urlPrefix := fmt.Sprintf("http://%v:%v/update", metrics.ServerAdress, metrics.ServerPort)
+	urlPrefix := fmt.Sprintf("http://%v:%v/update", cfg.ServerAdress, cfg.ServerPort)
 	urlPart := ""
 	if r.Kind() == reflect.Pointer {
 		r = r.Elem()

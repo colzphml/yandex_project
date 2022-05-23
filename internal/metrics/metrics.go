@@ -3,11 +3,6 @@ package metrics
 type Gauge float64
 type Counter int64
 
-const PollInterval = 2
-const ReportInterval = 10
-const ServerAdress = "127.0.0.1"
-const ServerPort = 8080
-
 type RuntimeMetrics struct {
 	Alloc         Gauge
 	BuckHashSys   Gauge

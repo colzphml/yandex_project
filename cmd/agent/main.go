@@ -15,6 +15,8 @@ import (
 )
 
 func main() {
+	//read config file
+	cfg := utils.LoadConfig()
 	//for metrics value
 	var currentRntState metrics.RuntimeMetrics
 	var currentAddState metrics.AdditionalMetrics
@@ -27,8 +29,8 @@ func main() {
 	//for additional metric RandomValue
 	rand.Seed(time.Now().UnixNano())
 	//can we get collision every 5th tickerPoll and every tickerReport??? Maybe send in other goroutine??
-	tickerPoll := time.NewTicker(metrics.PollInterval * time.Second)
-	tickerReport := time.NewTicker(metrics.ReportInterval * time.Second)
+	tickerPoll := time.NewTicker(time.Duration(cfg.PollInterval) * time.Second)
+	tickerReport := time.NewTicker(time.Duration(cfg.ReportInterval) * time.Second)
 	//client for send
 	client := http.Client{}
 	//maybe there is a better way
@@ -40,11 +42,12 @@ Loop:
 			utils.SetMetrics(&currentRntState, &currentAddState, runtimeState, pollCouter)
 			pollCouter++
 		case <-tickerReport.C:
-			utils.SendMetrics(currentRntState, client)
-			utils.SendMetrics(currentAddState, client)
+			utils.SendMetrics(cfg, currentRntState, client)
+			utils.SendMetrics(cfg, currentAddState, client)
 		case <-sigChan:
 			log.Println("close program")
 			break Loop
 		}
 	}
+
 }
