@@ -111,27 +111,10 @@ func SendMetrics(cfg *utils.AgentConfig, input interface{}, client *http.Client)
 			log.Println("undefined type for send")
 			continue
 		}
-		err := httpSend(client, urlPrefix+urlPart)
+		err := utils.HttpSend(client, urlPrefix+urlPart)
 		if err != nil {
 			log.Println(err.Error())
 			continue
 		}
 	}
-}
-
-func httpSend(client *http.Client, url string) error {
-	request, err := http.NewRequest(http.MethodPost, url, nil)
-	if err != nil {
-		return err
-	}
-	request.Header.Set("Content-Type", "text/plain")
-	response, err := client.Do(request)
-	if err != nil {
-		return err
-	}
-	defer response.Body.Close()
-	if response.StatusCode != 200 {
-		return err
-	}
-	return nil
 }

@@ -3,6 +3,7 @@ package utils
 import (
 	"io/ioutil"
 	"log"
+	"net/http"
 
 	"gopkg.in/yaml.v3"
 )
@@ -32,4 +33,21 @@ func LoadConfig() *AgentConfig {
 		return cfg
 	}
 	return cfg
+}
+
+func HttpSend(client *http.Client, url string) error {
+	request, err := http.NewRequest(http.MethodPost, url, nil)
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Content-Type", "text/plain")
+	response, err := client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != 200 {
+		return err
+	}
+	return nil
 }
