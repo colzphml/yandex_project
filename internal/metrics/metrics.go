@@ -16,7 +16,7 @@ import (
 type Gauge float64
 type Counter int64
 
-type Metric struct {
+type MetricValue struct {
 	Value interface{}
 	Type  string
 }
@@ -44,23 +44,23 @@ func GetRuntimeMetric(m *runtime.MemStats, fieldName string, fieldType string) (
 	}
 }
 
-func CollectMetrics(cfg *utils.AgentConfig, runtime *runtime.MemStats, inc Counter) map[string]Metric {
+func CollectMetrics(cfg *utils.AgentConfig, runtime *runtime.MemStats, inc Counter) map[string]MetricValue {
 	metricsDescr := cfg.Metrics
-	metricsStore := make(map[string]Metric)
+	metricsStore := make(map[string]MetricValue)
 	for k, v := range metricsDescr {
 		value, err := GetRuntimeMetric(runtime, k, v)
 		if err != nil {
 			log.Println(err.Error())
 			continue
 		}
-		metricsStore[k] = Metric{Value: value, Type: v}
+		metricsStore[k] = MetricValue{Value: value, Type: v}
 	}
-	metricsStore["PollCount"] = Metric{Value: inc, Type: "counter"}
-	metricsStore["RandomValue"] = Metric{Value: rand.Float64(), Type: "gauge"}
+	metricsStore["PollCount"] = MetricValue{Value: inc, Type: "counter"}
+	metricsStore["RandomValue"] = MetricValue{Value: rand.Float64(), Type: "gauge"}
 	return metricsStore
 }
 
-func SendMetrics(cfg *utils.AgentConfig, input map[string]Metric, client *http.Client) {
+func SendMetrics(cfg *utils.AgentConfig, input map[string]MetricValue, client *http.Client) {
 	var urlPrefix, urlPart string
 	urlPrefix = fmt.Sprintf("http://%v:%v/update", cfg.ServerAdress, cfg.ServerPort)
 	for k, v := range input {

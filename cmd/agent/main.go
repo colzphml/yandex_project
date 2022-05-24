@@ -19,7 +19,7 @@ func main() {
 	cfg := utils.LoadConfig()
 	//variables for send data
 	var runtimeState runtime.MemStats
-	metricsStore := make(map[string]metrics.Metric)
+	metricsStore := make(map[string]metrics.MetricValue)
 	//for close programm by signal
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
