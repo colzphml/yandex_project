@@ -126,5 +126,6 @@ func SendMetrics(cfg *utils.AgentConfig, input interface{}, client http.Client) 
 			log.Println("send failed")
 			continue
 		}
+		response.Body.Close()
 	}
 }
