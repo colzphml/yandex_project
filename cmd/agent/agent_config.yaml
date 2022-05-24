@@ -1,4 +1,4 @@
-pollInterval: 2
-reportInterval: 10
-serverAdress: 127.0.0.1
-serverPort: 8080
+ServerAdress: "127.0.0.1"
+ServerPort: 8080
+PollInterval: 2
+ReportInterval: 10

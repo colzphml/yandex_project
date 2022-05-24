@@ -86,7 +86,7 @@ func SetMetrics(runtime *RuntimeMetrics, addit *AdditionalMetrics, runtimeState 
 	addit.RandomValue = Gauge(rand.Float64())
 }
 
-func SendMetrics(cfg utils.AgentConfig, input interface{}, client http.Client) {
+func SendMetrics(cfg *utils.AgentConfig, input interface{}, client http.Client) {
 	var r reflect.Value
 	switch input := input.(type) {
 	case RuntimeMetrics:
