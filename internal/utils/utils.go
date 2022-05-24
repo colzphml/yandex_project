@@ -35,7 +35,7 @@ func LoadConfig() *AgentConfig {
 	return cfg
 }
 
-func HttpSend(client *http.Client, url string) error {
+func HTTPSend(client *http.Client, url string) error {
 	request, err := http.NewRequest(http.MethodPost, url, nil)
 	if err != nil {
 		return err
