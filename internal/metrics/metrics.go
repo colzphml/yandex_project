@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"math/rand"
@@ -15,102 +16,55 @@ import (
 type Gauge float64
 type Counter int64
 
-type RuntimeMetrics struct {
-	Alloc         Gauge
-	BuckHashSys   Gauge
-	Frees         Gauge
-	GCCPUFraction Gauge
-	GCSys         Gauge
-	HeapAlloc     Gauge
-	HeapIdle      Gauge
-	HeapInuse     Gauge
-	HeapObjects   Gauge
-	HeapReleased  Gauge
-	HeapSys       Gauge
-	LastGC        Gauge
-	Lookups       Gauge
-	MCacheInuse   Gauge
-	MCacheSys     Gauge
-	MSpanInuse    Gauge
-	MSpanSys      Gauge
-	Mallocs       Gauge
-	NextGC        Gauge
-	NumForcedGC   Gauge
-	NumGC         Gauge
-	OtherSys      Gauge
-	PauseTotalNs  Gauge
-	StackInuse    Gauge
-	StackSys      Gauge
-	Sys           Gauge
-	TotalAlloc    Gauge
+type Metric struct {
+	Value interface{}
+	Type  string
 }
 
-type AdditionalMetrics struct {
-	PollCount   Counter
-	RandomValue Gauge
-}
-
-func getRuntimeMetric(m runtime.MemStats, field string) Gauge {
+func GetRuntimeMetric(m *runtime.MemStats, fieldName string, fieldType string) (interface{}, error) {
 	r := reflect.ValueOf(m)
 	if r.Kind() == reflect.Ptr {
 		r = r.Elem()
 	}
-	f := r.FieldByName(field)
-	switch t := r.FieldByName(field).Type().Name(); {
-	case strings.Contains(t, "int"):
-		return Gauge(f.Uint())
-	case strings.Contains(t, "float"):
-		return Gauge(f.Float())
+	f := r.FieldByName(fieldName)
+	if f == (reflect.Value{}) {
+		return nil, errors.New("runtime not have this variable:" + fieldName + ", check config file")
+	}
+	switch t := r.FieldByName(fieldName).Type().Name(); {
+	case strings.Contains(t, "int") && fieldType == "gauge":
+		return Gauge(f.Uint()), nil
+	case strings.Contains(t, "int") && fieldType == "counter":
+		return Counter(f.Uint()), nil
+	case strings.Contains(t, "float") && fieldType == "gauge":
+		return Gauge(f.Float()), nil
+	case strings.Contains(t, "float") && fieldType == "counter":
+		return Counter(f.Float()), nil
 	default:
-		log.Printf("unknown type of metric: %v", r.FieldByName(field).Type().Name())
+		return nil, errors.New("not know type of variable: " + fieldType + ", check config file")
 	}
-	return Gauge(f.Float())
 }
 
-func SetMetrics(runtime *RuntimeMetrics, addit *AdditionalMetrics, runtimeState runtime.MemStats, inc Counter) {
-	r := reflect.ValueOf(runtime)
-	if r.Kind() == reflect.Ptr {
-		r = r.Elem()
-	}
-	for j := 0; j < r.NumField(); j++ {
-		switch r.Field(j).Type().Name() {
-		case "Gauge":
-			r.Field(j).SetFloat(float64(getRuntimeMetric(runtimeState, r.Type().Field(j).Name)))
-		case "Counter":
-			r.Field(j).SetInt(int64(getRuntimeMetric(runtimeState, r.Type().Field(j).Name)))
-		default:
-			log.Println("undefined type for get")
-		}
-	}
-	addit.PollCount = inc
-	addit.RandomValue = Gauge(rand.Float64())
-}
-
-func SendMetrics(cfg *utils.AgentConfig, input interface{}, client *http.Client) {
-	var r reflect.Value
-	switch input := input.(type) {
-	case RuntimeMetrics:
-		metrics := input
-		r = reflect.ValueOf(&metrics)
-	case AdditionalMetrics:
-		metrics := input
-		r = reflect.ValueOf(&metrics)
-	}
-	urlPrefix := fmt.Sprintf("http://%v:%v/update", cfg.ServerAdress, cfg.ServerPort)
-	urlPart := ""
-	if r.Kind() == reflect.Ptr {
-		r = r.Elem()
-	}
-	for j := 0; j < r.NumField(); j++ {
-		switch r.Field(j).Type().Name() {
-		case "Gauge":
-			urlPart = fmt.Sprintf("/%v/%v/%v", r.Field(j).Type().Name(), r.Type().Field(j).Name, r.Field(j).Float())
-		case "Counter":
-			urlPart = fmt.Sprintf("/%v/%v/%v", r.Field(j).Type().Name(), r.Type().Field(j).Name, r.Field(j).Int())
-		default:
-			log.Println("undefined type for send")
+func CollectMetrics(cfg *utils.AgentConfig, runtime *runtime.MemStats, inc Counter) map[string]Metric {
+	metricsDescr := cfg.Metrics
+	metricsStore := make(map[string]Metric)
+	for k, v := range metricsDescr {
+		value, err := GetRuntimeMetric(runtime, k, v)
+		if err != nil {
+			log.Println(err.Error())
 			continue
 		}
+		metricsStore[k] = Metric{Value: value, Type: v}
+	}
+	metricsStore["PollCount"] = Metric{Value: inc, Type: "counter"}
+	metricsStore["RandomValue"] = Metric{Value: rand.Float64(), Type: "gauge"}
+	return metricsStore
+}
+
+func SendMetrics(cfg *utils.AgentConfig, input map[string]Metric, client *http.Client) {
+	var urlPrefix, urlPart string
+	urlPrefix = fmt.Sprintf("http://%v:%v/update", cfg.ServerAdress, cfg.ServerPort)
+	for k, v := range input {
+		urlPart = fmt.Sprintf("/%v/%v/%v/", v.Type, k, v.Value)
 		err := utils.HTTPSend(client, urlPrefix+urlPart)
 		if err != nil {
 			log.Println(err.Error())

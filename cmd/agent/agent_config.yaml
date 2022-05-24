@@ -2,3 +2,31 @@ ServerAdress: "127.0.0.1"
 ServerPort: 8080
 PollInterval: 2
 ReportInterval: 10
+Metrics:
+  Alloc: gauge
+  BuckHashSys: gauge
+  Frees: gauge
+  GCCPUFraction: gauge
+  GCSys: gauge
+  HeapAlloc: gauge
+  HeapIdle: gauge
+  HeapInuse: gauge
+  HeapObjects: gauge
+  HeapReleased: gauge
+  HeapSys: gauge
+  LastGC: gauge
+  Lookups: gauge
+  MCacheInuse: gauge
+  MCacheSys: gauge
+  MSpanInuse: gauge
+  MSpanSys: gauge
+  Mallocs: gauge
+  NextGC: gauge
+  NumForcedGC: gauge
+  NumGC: gauge
+  OtherSys: gauge
+  PauseTotalNs: gauge
+  StackInuse: gauge
+  StackSys: gauge
+  Sys: gauge
+  TotalAlloc: gauge

@@ -9,10 +9,11 @@ import (
 )
 
 type AgentConfig struct {
-	ServerAdress   string `yaml:"ServerAdress"`
-	ServerPort     int    `yaml:"ServerPort"`
-	PollInterval   int    `yaml:"PollInterval"`
-	ReportInterval int    `yaml:"ReportInterval"`
+	ServerAdress   string            `yaml:"ServerAdress"`
+	ServerPort     int               `yaml:"ServerPort"`
+	PollInterval   int               `yaml:"PollInterval"`
+	ReportInterval int               `yaml:"ReportInterval"`
+	Metrics        map[string]string `yaml:"Metrics"`
 }
 
 func LoadConfig() *AgentConfig {
@@ -21,6 +22,35 @@ func LoadConfig() *AgentConfig {
 		ServerPort:     8080,
 		PollInterval:   2,
 		ReportInterval: 10,
+		Metrics: map[string]string{
+			"Alloc":         "gauge",
+			"BuckHashSys":   "gauge",
+			"Frees":         "gauge",
+			"GCCPUFraction": "gauge",
+			"GCSys":         "gauge",
+			"HeapAlloc":     "gauge",
+			"HeapIdle":      "gauge",
+			"HeapInuse":     "gauge",
+			"HeapObjects":   "gauge",
+			"HeapReleased":  "gauge",
+			"HeapSys":       "gauge",
+			"LastGC":        "gauge",
+			"Lookups":       "gauge",
+			"MCacheInuse":   "gauge",
+			"MCacheSys":     "gauge",
+			"MSpanInuse":    "gauge",
+			"MSpanSys":      "gauge",
+			"Mallocs":       "gauge",
+			"NextGC":        "gauge",
+			"NumForcedGC":   "gauge",
+			"NumGC":         "gauge",
+			"OtherSys":      "gauge",
+			"PauseTotalNs":  "gauge",
+			"StackInuse":    "gauge",
+			"StackSys":      "gauge",
+			"Sys":           "gauge",
+			"TotalAlloc":    "gauge",
+		},
 	}
 	yfile, err := ioutil.ReadFile("agent_config.yaml")
 	if err != nil {

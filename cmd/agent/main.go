@@ -17,10 +17,9 @@ import (
 func main() {
 	//read config file
 	cfg := utils.LoadConfig()
-	//for metrics value
-	var currentRntState metrics.RuntimeMetrics
-	var currentAddState metrics.AdditionalMetrics
+	//variables for send data
 	var runtimeState runtime.MemStats
+	metricsStore := make(map[string]metrics.Metric)
 	//for close programm by signal
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
@@ -39,15 +38,13 @@ Loop:
 		select {
 		case <-tickerPoll.C:
 			runtime.ReadMemStats(&runtimeState)
-			metrics.SetMetrics(&currentRntState, &currentAddState, runtimeState, pollCouter)
+			metricsStore = metrics.CollectMetrics(cfg, &runtimeState, pollCouter)
 			pollCouter++
 		case <-tickerReport.C:
-			metrics.SendMetrics(cfg, currentRntState, client)
-			metrics.SendMetrics(cfg, currentAddState, client)
+			metrics.SendMetrics(cfg, metricsStore, client)
 		case <-sigChan:
 			log.Println("close program")
 			break Loop
 		}
 	}
-
 }
