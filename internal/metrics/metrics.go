@@ -69,7 +69,7 @@ func getRuntimeMetric(m runtime.MemStats, field string) Gauge {
 
 func SetMetrics(runtime *RuntimeMetrics, addit *AdditionalMetrics, runtimeState runtime.MemStats, inc Counter) {
 	r := reflect.ValueOf(runtime)
-	if r.Kind() == reflect.Pointer {
+	if r.Kind() == reflect.Ptr {
 		r = r.Elem()
 	}
 	for j := 0; j < r.NumField(); j++ {
@@ -98,7 +98,7 @@ func SendMetrics(cfg *utils.AgentConfig, input interface{}, client http.Client) 
 	}
 	urlPrefix := fmt.Sprintf("http://%v:%v/update", cfg.ServerAdress, cfg.ServerPort)
 	urlPart := ""
-	if r.Kind() == reflect.Pointer {
+	if r.Kind() == reflect.Ptr {
 		r = r.Elem()
 	}
 	for j := 0; j < r.NumField(); j++ {
