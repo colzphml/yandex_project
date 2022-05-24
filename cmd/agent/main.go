@@ -32,7 +32,7 @@ func main() {
 	tickerPoll := time.NewTicker(time.Duration(cfg.PollInterval) * time.Second)
 	tickerReport := time.NewTicker(time.Duration(cfg.ReportInterval) * time.Second)
 	//client for send
-	client := http.Client{}
+	client := &http.Client{}
 	//maybe there is a better way
 Loop:
 	for {

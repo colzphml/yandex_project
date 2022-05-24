@@ -86,7 +86,7 @@ func SetMetrics(runtime *RuntimeMetrics, addit *AdditionalMetrics, runtimeState 
 	addit.RandomValue = Gauge(rand.Float64())
 }
 
-func SendMetrics(cfg *utils.AgentConfig, input interface{}, client http.Client) {
+func SendMetrics(cfg *utils.AgentConfig, input interface{}, client *http.Client) {
 	var r reflect.Value
 	switch input := input.(type) {
 	case RuntimeMetrics:
@@ -111,21 +111,27 @@ func SendMetrics(cfg *utils.AgentConfig, input interface{}, client http.Client) 
 			log.Println("undefined type for send")
 			continue
 		}
-		request, err := http.NewRequest(http.MethodPost, urlPrefix+urlPart, nil)
+		err := httpSend(client, urlPrefix+urlPart)
 		if err != nil {
 			log.Println(err.Error())
 			continue
 		}
-		request.Header.Set("Content-Type", "text/plain")
-		response, err := client.Do(request)
-		if err != nil {
-			log.Println(err.Error())
-			continue
-		}
-		if response.StatusCode != 200 {
-			log.Println("send failed")
-			continue
-		}
-		response.Body.Close()
 	}
+}
+
+func httpSend(client *http.Client, url string) error {
+	request, err := http.NewRequest(http.MethodPost, url, nil)
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Content-Type", "text/plain")
+	response, err := client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != 200 {
+		return err
+	}
+	return nil
 }
