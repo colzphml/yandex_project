@@ -111,7 +111,7 @@ func SendMetrics(cfg *utils.AgentConfig, input interface{}, client *http.Client)
 			log.Println("undefined type for send")
 			continue
 		}
-		err := utils.HttpSend(client, urlPrefix+urlPart)
+		err := utils.HTTPSend(client, urlPrefix+urlPart)
 		if err != nil {
 			log.Println(err.Error())
 			continue
