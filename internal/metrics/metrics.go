@@ -52,7 +52,7 @@ type AdditionalMetrics struct {
 
 func getRuntimeMetric(m runtime.MemStats, field string) Gauge {
 	r := reflect.ValueOf(m)
-	if r.Kind() == reflect.Pointer {
+	if r.Kind() == reflect.Ptr {
 		r = r.Elem()
 	}
 	f := r.FieldByName(field)
