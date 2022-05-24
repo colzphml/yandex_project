@@ -19,6 +19,7 @@ func main() {
 	cfg := utils.LoadConfig()
 	//variables for send data
 	var runtimeState runtime.MemStats
+	//slice or map??? append = create new slice, add new element to map it is better than append??
 	metricsStore := make(map[string]metrics.MetricValue)
 	//for close programm by signal
 	sigChan := make(chan os.Signal, 1)
