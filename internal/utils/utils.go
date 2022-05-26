@@ -16,7 +16,7 @@ type AgentConfig struct {
 	Metrics        map[string]string `yaml:"Metrics"`
 }
 
-func LoadConfig() *AgentConfig {
+func LoadAgentConfig() *AgentConfig {
 	cfg := &AgentConfig{
 		ServerAdress:   "127.0.0.1",
 		ServerPort:     8080,
@@ -60,7 +60,28 @@ func LoadConfig() *AgentConfig {
 	err = yaml.Unmarshal(yfile, &cfg)
 	if err != nil {
 		log.Println(err.Error())
+	}
+	return cfg
+}
+
+type ServerConfig struct {
+	ServerAdress string `yaml:"ServerAdress"`
+	ServerPort   int    `yaml:"ServerPort"`
+}
+
+func LoadServerConfig() *ServerConfig {
+	cfg := &ServerConfig{
+		ServerAdress: "127.0.0.1",
+		ServerPort:   8080,
+	}
+	yfile, err := ioutil.ReadFile("server_config.yaml")
+	if err != nil {
+		log.Println(err.Error())
 		return cfg
+	}
+	err = yaml.Unmarshal(yfile, &cfg)
+	if err != nil {
+		log.Println(err.Error())
 	}
 	return cfg
 }

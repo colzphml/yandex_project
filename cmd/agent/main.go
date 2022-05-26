@@ -16,7 +16,7 @@ import (
 
 func main() {
 	//read config file
-	cfg := utils.LoadConfig()
+	cfg := utils.LoadAgentConfig()
 	//variables for send data
 	var runtimeState runtime.MemStats
 	//slice or map??? append = create new slice, add new element to map it is better than append??
