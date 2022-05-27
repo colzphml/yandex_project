@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -50,7 +49,6 @@ func SaveHandler(repo *storage.MetricRepo) http.HandlerFunc {
 				http.Error(rw, "undefined metric type: "+input[2], http.StatusBadRequest)
 				return
 			}
-			fmt.Println(repo)
 			rw.Header().Set("Content-Type", "test/plain")
 			rw.WriteHeader(http.StatusOK)
 			rw.Write([]byte("Metric saved"))
