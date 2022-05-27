@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/colzphml/yandex_project/internal/utils"
@@ -15,6 +16,14 @@ import (
 
 type Gauge float64
 type Counter int64
+
+func (g Gauge) String() string {
+	return strconv.FormatFloat(float64(g), 'g', -1, 64)
+}
+
+func (c Counter) String() string {
+	return strconv.FormatInt(int64(c), 10)
+}
 
 type MetricValue struct {
 	Value interface{}

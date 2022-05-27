@@ -1,7 +1,8 @@
 package handlers
 
 import (
-	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -11,57 +12,74 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-//здесь не работает
-func TestFunc(w http.ResponseWriter, r *http.Request) {
-	fmt.Println(chi.URLParam(r, "metric_value"))
-	w.Write([]byte("test" + chi.URLParam(r, "metric_value")))
-}
-
 func SaveHandler(repo *storage.MetricRepo) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		metricType := chi.URLParam(r, "metric_type")
-		fmt.Println(metricType)
-		switch {
-		case r.Method != http.MethodPost:
-			http.Error(rw, "request is not POST", http.StatusBadRequest)
+		metricName := chi.URLParam(r, "metric_name")
+		metricValue := chi.URLParam(r, "metric_value")
+		if metricName == "" || metricValue == "" {
+			http.Error(rw, "can't parse metric: "+r.URL.Path, http.StatusNotFound)
 			return
-			//...maybe more cases
-		default:
-			input := strings.Split(r.URL.Path, "/")
-			if len(input) < 5 {
-				http.Error(rw, "can't parse metric: "+r.URL.Path, http.StatusNotFound)
-				return
-			}
-			switch input[2] {
-			case "gauge":
-				value, err := strconv.ParseFloat(input[4], 64)
-				if err != nil {
-					http.Error(rw, "can't parse metric: "+r.URL.Path, http.StatusBadRequest)
-					return
-				}
-				err = repo.SaveMetric(input[3], metrics.MetricValue{Type: input[2], Value: metrics.Gauge(value)})
-				if err != nil {
-					http.Error(rw, "can't save metric: "+r.URL.Path, http.StatusBadRequest)
-					return
-				}
-			case "counter":
-				value, err := strconv.ParseInt(input[4], 10, 64)
-				if err != nil {
-					http.Error(rw, "can't parse metric: "+r.URL.Path, http.StatusBadRequest)
-					return
-				}
-				err = repo.SaveMetric(input[3], metrics.MetricValue{Type: input[2], Value: metrics.Counter(value)})
-				if err != nil {
-					http.Error(rw, "can't save metric: "+r.URL.Path, http.StatusBadRequest)
-					return
-				}
-			default:
-				http.Error(rw, "undefined metric type: "+input[2], http.StatusNotImplemented)
-				return
-			}
-			rw.Header().Set("Content-Type", "test/plain")
-			rw.WriteHeader(http.StatusOK)
-			rw.Write([]byte("Metric saved"))
 		}
+		switch metricType {
+		case "gauge":
+			value, err := strconv.ParseFloat(metricValue, 64)
+			if err != nil {
+				http.Error(rw, "can't parse metric: "+r.URL.Path, http.StatusBadRequest)
+				return
+			}
+			err = repo.SaveMetric(metricName, metrics.MetricValue{Type: metricType, Value: metrics.Gauge(value)})
+			if err != nil {
+				http.Error(rw, "can't save metric: "+r.URL.Path, http.StatusBadRequest)
+				return
+			}
+		case "counter":
+			value, err := strconv.ParseInt(metricValue, 10, 64)
+			if err != nil {
+				http.Error(rw, "can't parse metric: "+r.URL.Path, http.StatusBadRequest)
+				return
+			}
+			err = repo.SaveMetric(metricName, metrics.MetricValue{Type: metricType, Value: metrics.Counter(value)})
+			if err != nil {
+				http.Error(rw, "can't save metric: "+r.URL.Path, http.StatusBadRequest)
+				return
+			}
+		default:
+			http.Error(rw, "undefined metric type: "+metricType, http.StatusNotImplemented)
+			return
+		}
+		log.Println(repo)
+		rw.Header().Set("Content-Type", "text/plain")
+		rw.WriteHeader(http.StatusOK)
+		rw.Write([]byte("Metric saved"))
+	}
+}
+
+func ListMetrics(repo *storage.MetricRepo) http.HandlerFunc {
+	return func(rw http.ResponseWriter, r *http.Request) {
+		metricList := repo.ListMetrics()
+		_, err := io.WriteString(rw, strings.Join(metricList, ","))
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func GetValue(repo *storage.MetricRepo) http.HandlerFunc {
+	return func(rw http.ResponseWriter, r *http.Request) {
+		mName := chi.URLParam(r, "metric_name")
+		mType := chi.URLParam(r, "metric_type")
+		value, metricType, err := repo.GetValue(mName)
+		if err != nil {
+			http.Error(rw, "undefined metric: "+mName, http.StatusNotFound)
+			return
+		}
+		if metricType != mType {
+			http.Error(rw, "this metric have another type: "+mName, http.StatusNotFound)
+			return
+		}
+		rw.Header().Set("Content-Type", "text/plain")
+		rw.WriteHeader(http.StatusOK)
+		rw.Write([]byte(value))
 	}
 }

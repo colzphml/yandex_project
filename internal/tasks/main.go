@@ -24,7 +24,7 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	// определяем хендлер, который выводит все машины
-	r.Get("/cars", func(rw http.ResponseWriter, r *http.Request) {
+	r.Post("/update/{metric_type}/{metric_name}/{meetric_value}", func(rw http.ResponseWriter, r *http.Request) {
 		carsList := carsListFunc()
 		_, err := io.WriteString(rw, strings.Join(carsList, ","))
 		if err != nil {
