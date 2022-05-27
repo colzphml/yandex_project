@@ -11,6 +11,13 @@ import (
 	"github.com/go-chi/chi/middleware"
 )
 
+//если здесь - то работает
+/*
+func TestFunc(w http.ResponseWriter, r *http.Request) {
+	fmt.Println(chi.URLParam(r, "metric_value"))
+	w.Write([]byte("test" + chi.URLParam(r, "metric_value")))
+}
+*/
 func main() {
 	cfg := utils.LoadServerConfig()
 	//repo := storage.NewMetricRepo()
