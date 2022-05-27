@@ -1,16 +1,26 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/colzphml/yandex_project/internal/metrics"
 	"github.com/colzphml/yandex_project/internal/storage"
+	"github.com/go-chi/chi/v5"
 )
+
+//здесь не работает
+func TestFunc(w http.ResponseWriter, r *http.Request) {
+	fmt.Println(chi.URLParam(r, "metric_value"))
+	w.Write([]byte("test" + chi.URLParam(r, "metric_value")))
+}
 
 func SaveHandler(repo *storage.MetricRepo) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
+		metricType := chi.URLParam(r, "metric_type")
+		fmt.Println(metricType)
 		switch {
 		case r.Method != http.MethodPost:
 			http.Error(rw, "request is not POST", http.StatusBadRequest)
