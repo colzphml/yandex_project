@@ -64,7 +64,7 @@ func SendMetrics(cfg *utils.AgentConfig, input map[string]MetricValue, client *h
 	var urlPrefix, urlPart string
 	urlPrefix = fmt.Sprintf("http://%v:%v/update", cfg.ServerAdress, cfg.ServerPort)
 	for k, v := range input {
-		urlPart = fmt.Sprintf("/%v/%v/%v/", v.Type, k, v.Value)
+		urlPart = fmt.Sprintf("/%v/%v/%v", v.Type, k, v.Value)
 		err := utils.HTTPSend(client, urlPrefix+urlPart)
 		if err != nil {
 			log.Println(err.Error())

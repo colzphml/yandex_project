@@ -27,7 +27,7 @@ func (m MetricRepo) SaveMetric(metricName string, MetricValue metrics.MetricValu
 			m.db[metricName] = v.(metrics.Counter) + MetricValue.Value.(metrics.Counter)
 			return nil
 		} else {
-			m.db[metricName] = v.(metrics.Counter)
+			m.db[metricName] = MetricValue.Value.(metrics.Counter)
 			return nil
 		}
 	case "gauge":

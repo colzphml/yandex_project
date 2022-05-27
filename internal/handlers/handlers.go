@@ -1,44 +1,59 @@
 package handlers
 
 import (
-	"encoding/json"
+	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
+
+	"github.com/colzphml/yandex_project/internal/metrics"
+	"github.com/colzphml/yandex_project/internal/storage"
 )
 
-func StatusHandler(rw http.ResponseWriter, r *http.Request) {
-	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(http.StatusOK)
-	// намеренно сделана ошибка в JSON
-	rw.Write([]byte(`{"status":"ok"}`))
-}
-
-type User struct {
-	ID        string
-	FirstName string
-	LastName  string
-}
-
-func UserViewHandler(users map[string]User) http.HandlerFunc {
+func SaveHandler(repo *storage.MetricRepo) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
-		userId := r.URL.Query().Get("user_id")
-		if r.URL.Query().Get("user_id") == "" {
-			http.Error(rw, "userId is empty", http.StatusBadRequest)
+		switch {
+		case r.Method != http.MethodPost:
+			http.Error(rw, "request is not POST", http.StatusBadRequest)
 			return
+			//...maybe more cases
+		default:
+			input := strings.Split(r.URL.Path, "/")
+			if len(input) < 5 {
+				http.Error(rw, "can't parse metric: "+r.URL.Path, http.StatusBadRequest)
+				return
+			}
+			switch input[2] {
+			case "gauge":
+				value, err := strconv.ParseFloat(input[4], 64)
+				if err != nil {
+					http.Error(rw, "can't parse metric: "+r.URL.Path, http.StatusBadRequest)
+					return
+				}
+				err = repo.SaveMetric(input[3], metrics.MetricValue{Type: input[2], Value: metrics.Gauge(value)})
+				if err != nil {
+					http.Error(rw, "can't save metric: "+r.URL.Path, http.StatusBadRequest)
+					return
+				}
+			case "counter":
+				value, err := strconv.ParseInt(input[4], 10, 64)
+				if err != nil {
+					http.Error(rw, "can't parse metric: "+r.URL.Path, http.StatusBadRequest)
+					return
+				}
+				err = repo.SaveMetric(input[3], metrics.MetricValue{Type: input[2], Value: metrics.Counter(value)})
+				if err != nil {
+					http.Error(rw, "can't save metric: "+r.URL.Path, http.StatusBadRequest)
+					return
+				}
+			default:
+				http.Error(rw, "undefined metric type: "+input[2], http.StatusBadRequest)
+				return
+			}
+			fmt.Println(repo)
+			rw.Header().Set("Content-Type", "test/plain")
+			rw.WriteHeader(http.StatusOK)
+			rw.Write([]byte("Metric saved"))
 		}
-
-		user, ok := users[userId]
-		if !ok {
-			http.Error(rw, "user not found", http.StatusNotFound)
-			return
-		}
-
-		jsonUser, err := json.Marshal(user)
-		if err != nil {
-			http.Error(rw, "can't provide a json. internal error", http.StatusInternalServerError)
-			return
-		}
-		rw.Header().Set("Content-Type", "application/json")
-		rw.WriteHeader(http.StatusOK)
-		rw.Write(jsonUser)
 	}
 }

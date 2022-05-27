@@ -6,11 +6,13 @@ import (
 	"strconv"
 
 	"github.com/colzphml/yandex_project/internal/handlers"
+	"github.com/colzphml/yandex_project/internal/storage"
 	"github.com/colzphml/yandex_project/internal/utils"
 )
 
 func main() {
 	cfg := utils.LoadServerConfig()
-	http.HandleFunc("/update/", handlers.StatusHandler)
+	repo := storage.NewMetricRepo()
+	http.HandleFunc("/update/", handlers.SaveHandler(&repo))
 	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(cfg.ServerPort), nil))
 }
