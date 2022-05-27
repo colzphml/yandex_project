@@ -19,7 +19,7 @@ func SaveHandler(repo *storage.MetricRepo) http.HandlerFunc {
 		default:
 			input := strings.Split(r.URL.Path, "/")
 			if len(input) < 5 {
-				http.Error(rw, "can't parse metric: "+r.URL.Path, http.StatusBadRequest)
+				http.Error(rw, "can't parse metric: "+r.URL.Path, http.StatusNotFound)
 				return
 			}
 			switch input[2] {
@@ -46,7 +46,7 @@ func SaveHandler(repo *storage.MetricRepo) http.HandlerFunc {
 					return
 				}
 			default:
-				http.Error(rw, "undefined metric type: "+input[2], http.StatusBadRequest)
+				http.Error(rw, "undefined metric type: "+input[2], http.StatusNotImplemented)
 				return
 			}
 			rw.Header().Set("Content-Type", "test/plain")
