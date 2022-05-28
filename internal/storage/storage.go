@@ -43,8 +43,8 @@ func (m *MetricRepo) SaveMetric(metricName string, MetricValue metrics.MetricVal
 
 func (m *MetricRepo) ListMetrics() []string {
 	var list []string
-	for k := range m.db {
-		list = append(list, k)
+	for k, v := range m.db {
+		list = append(list, k+":"+metrics.ValueToString(v))
 	}
 	sort.Slice(list, func(i, j int) bool {
 		return list[i] < list[j]
@@ -57,12 +57,10 @@ func (m *MetricRepo) GetValue(metricName string) (string, string, error) {
 	if !ok {
 		return "", "", errors.New("metric not stored")
 	}
-	switch m.db[metricName].(type) {
-	case metrics.Gauge:
-		return v.(metrics.Gauge).String(), "gauge", nil
-	case metrics.Counter:
-		return v.(metrics.Counter).String(), "counter", nil
-	default:
-		return "", "", errors.New("metric stored, but type undefined")
+	mType := metrics.MetricType(v)
+	mValue := metrics.ValueToString(v)
+	if mType != "" && mValue != "" {
+		return mValue, mType, nil
 	}
+	return "", "", errors.New("metric stored, but type undefined")
 }

@@ -30,6 +30,11 @@ type MetricValue struct {
 	Type  string
 }
 
+var (
+	UndefinedTypeError = errors.New("type of metric undefined")
+	ParseMetricError   = errors.New("can't parse metric")
+)
+
 func GetRuntimeMetric(m *runtime.MemStats, fieldName string, fieldType string) (interface{}, error) {
 	r := reflect.ValueOf(m)
 	if r.Kind() == reflect.Ptr {
@@ -79,5 +84,44 @@ func SendMetrics(cfg *utils.AgentConfig, input map[string]MetricValue, client *h
 			log.Println(err.Error())
 			continue
 		}
+	}
+}
+
+func ValueToString(a interface{}) string {
+	switch a := a.(type) {
+	case Gauge:
+		return a.String()
+	case Counter:
+		return a.String()
+	}
+	return ""
+}
+
+func MetricType(a interface{}) string {
+	switch a.(type) {
+	case Gauge:
+		return "gauge"
+	case Counter:
+		return "counter"
+	}
+	return ""
+}
+
+func ConvertToMetric(metricType, metricValue string) (MetricValue, error) {
+	switch metricType {
+	case "gauge":
+		value, err := strconv.ParseFloat(metricValue, 64)
+		if err != nil {
+			return MetricValue{}, ParseMetricError
+		}
+		return MetricValue{Type: metricType, Value: Gauge(value)}, nil
+	case "counter":
+		value, err := strconv.ParseInt(metricValue, 10, 64)
+		if err != nil {
+			return MetricValue{}, ParseMetricError
+		}
+		return MetricValue{Type: metricType, Value: Counter(value)}, nil
+	default:
+		return MetricValue{}, UndefinedTypeError
 	}
 }

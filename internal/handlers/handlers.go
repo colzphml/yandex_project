@@ -2,9 +2,7 @@ package handlers
 
 import (
 	"io"
-	"log"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/colzphml/yandex_project/internal/metrics"
@@ -21,34 +19,20 @@ func SaveHandler(repo *storage.MetricRepo) http.HandlerFunc {
 			http.Error(rw, "can't parse metric: "+r.URL.Path, http.StatusNotFound)
 			return
 		}
-		switch metricType {
-		case "gauge":
-			value, err := strconv.ParseFloat(metricValue, 64)
-			if err != nil {
-				http.Error(rw, "can't parse metric: "+r.URL.Path, http.StatusBadRequest)
-				return
-			}
-			err = repo.SaveMetric(metricName, metrics.MetricValue{Type: metricType, Value: metrics.Gauge(value)})
-			if err != nil {
-				http.Error(rw, "can't save metric: "+r.URL.Path, http.StatusBadRequest)
-				return
-			}
-		case "counter":
-			value, err := strconv.ParseInt(metricValue, 10, 64)
-			if err != nil {
-				http.Error(rw, "can't parse metric: "+r.URL.Path, http.StatusBadRequest)
-				return
-			}
-			err = repo.SaveMetric(metricName, metrics.MetricValue{Type: metricType, Value: metrics.Counter(value)})
-			if err != nil {
-				http.Error(rw, "can't save metric: "+r.URL.Path, http.StatusBadRequest)
-				return
-			}
-		default:
-			http.Error(rw, "undefined metric type: "+metricType, http.StatusNotImplemented)
+		mValue, err := metrics.ConvertToMetric(metricType, metricValue)
+		switch err {
+		case metrics.ParseMetricError:
+			http.Error(rw, err.Error()+" "+r.URL.Path, http.StatusBadRequest)
+			return
+		case metrics.UndefinedTypeError:
+			http.Error(rw, err.Error()+" "+r.URL.Path, http.StatusNotImplemented)
 			return
 		}
-		log.Println(repo)
+		err = repo.SaveMetric(metricName, mValue)
+		if err != nil {
+			http.Error(rw, "can't save metric: "+r.URL.Path, http.StatusBadRequest)
+			return
+		}
 		rw.Header().Set("Content-Type", "text/plain")
 		rw.WriteHeader(http.StatusOK)
 		rw.Write([]byte("Metric saved"))
@@ -58,7 +42,7 @@ func SaveHandler(repo *storage.MetricRepo) http.HandlerFunc {
 func ListMetrics(repo *storage.MetricRepo) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		metricList := repo.ListMetrics()
-		_, err := io.WriteString(rw, strings.Join(metricList, ","))
+		_, err := io.WriteString(rw, strings.Join(metricList, "\n"))
 		if err != nil {
 			panic(err)
 		}
