@@ -24,21 +24,16 @@ func NewMetricRepo() *MetricRepo {
 }
 
 func (m *MetricRepo) SaveMetric(metricName string, MetricValue metrics.MetricValue) error {
-	switch MetricValue.Type {
-	case "counter":
-		if v, ok := m.db[metricName]; ok {
-			m.db[metricName] = v.(metrics.Counter) + MetricValue.Value.(metrics.Counter)
-			return nil
-		} else {
-			m.db[metricName] = MetricValue.Value.(metrics.Counter)
-			return nil
+	if v, ok := m.db[metricName]; ok {
+		newValue, err := metrics.NevValue(v, metricName, MetricValue)
+		if err != nil {
+			return err
 		}
-	case "gauge":
-		m.db[metricName] = MetricValue.Value.(metrics.Gauge)
-		return nil
-	default:
-		return errors.New("Metric " + metricName + "value not stored")
+		m.db[metricName] = newValue
+	} else {
+		m.db[metricName] = MetricValue.Value
 	}
+	return nil
 }
 
 func (m *MetricRepo) ListMetrics() []string {
@@ -61,6 +56,7 @@ func (m *MetricRepo) GetValue(metricName string) (string, string, error) {
 	mValue := metrics.ValueToString(v)
 	if mType != "" && mValue != "" {
 		return mValue, mType, nil
+	} else {
+		return "", "", metrics.ErrUndefinedType
 	}
-	return "", "", errors.New("metric stored, but type undefined")
 }

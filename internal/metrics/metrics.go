@@ -31,8 +31,8 @@ type MetricValue struct {
 }
 
 var (
-	UndefinedTypeError = errors.New("type of metric undefined")
-	ParseMetricError   = errors.New("can't parse metric")
+	ErrUndefinedType = errors.New("type of metric undefined")
+	ErrParseMetric   = errors.New("can't parse metric")
 )
 
 func GetRuntimeMetric(m *runtime.MemStats, fieldName string, fieldType string) (interface{}, error) {
@@ -112,16 +112,42 @@ func ConvertToMetric(metricType, metricValue string) (MetricValue, error) {
 	case "gauge":
 		value, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
-			return MetricValue{}, ParseMetricError
+			return MetricValue{}, ErrParseMetric
 		}
 		return MetricValue{Type: metricType, Value: Gauge(value)}, nil
 	case "counter":
 		value, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
-			return MetricValue{}, ParseMetricError
+			return MetricValue{}, ErrParseMetric
 		}
 		return MetricValue{Type: metricType, Value: Counter(value)}, nil
 	default:
-		return MetricValue{}, UndefinedTypeError
+		return MetricValue{}, ErrUndefinedType
+	}
+}
+
+func MetricMulti(i interface{}) (int, error) {
+	switch i.(type) {
+	case Gauge:
+		return 0, nil
+	case Counter:
+		return 1, nil
+	default:
+		return -1, ErrUndefinedType
+	}
+}
+
+func NevValue(oldValue interface{}, metricName string, mValue MetricValue) (interface{}, error) {
+	if MetricType(oldValue) != mValue.Type {
+		return nil, errors.New("metric have another type")
+	}
+	switch mValue.Type {
+	case "counter":
+		newValue := oldValue.(Counter) + mValue.Value.(Counter)
+		return newValue, nil
+	case "gauge":
+		return mValue.Value.(Gauge), nil
+	default:
+		return nil, ErrUndefinedType
 	}
 }

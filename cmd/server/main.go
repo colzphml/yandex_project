@@ -21,7 +21,7 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Post("/update/{metric_type}/{metric_name}/{metric_value}", handlers.SaveHandler(repo))
-	r.Get("/value/{metric_type}/{metric_name}", handlers.GetValue(repo))
-	r.Get("/", handlers.ListMetrics(repo))
+	r.Get("/value/{metric_type}/{metric_name}", handlers.GetValueHandler(repo))
+	r.Get("/", handlers.ListMetricsHandler(repo))
 	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(cfg.ServerPort), r))
 }

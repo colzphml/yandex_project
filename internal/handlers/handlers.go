@@ -21,10 +21,10 @@ func SaveHandler(repo *storage.MetricRepo) http.HandlerFunc {
 		}
 		mValue, err := metrics.ConvertToMetric(metricType, metricValue)
 		switch err {
-		case metrics.ParseMetricError:
+		case metrics.ErrParseMetric:
 			http.Error(rw, err.Error()+" "+r.URL.Path, http.StatusBadRequest)
 			return
-		case metrics.UndefinedTypeError:
+		case metrics.ErrUndefinedType:
 			http.Error(rw, err.Error()+" "+r.URL.Path, http.StatusNotImplemented)
 			return
 		}
@@ -39,7 +39,7 @@ func SaveHandler(repo *storage.MetricRepo) http.HandlerFunc {
 	}
 }
 
-func ListMetrics(repo *storage.MetricRepo) http.HandlerFunc {
+func ListMetricsHandler(repo *storage.MetricRepo) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		metricList := repo.ListMetrics()
 		_, err := io.WriteString(rw, strings.Join(metricList, "\n"))
@@ -49,13 +49,13 @@ func ListMetrics(repo *storage.MetricRepo) http.HandlerFunc {
 	}
 }
 
-func GetValue(repo *storage.MetricRepo) http.HandlerFunc {
+func GetValueHandler(repo *storage.MetricRepo) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		mName := chi.URLParam(r, "metric_name")
 		mType := chi.URLParam(r, "metric_type")
 		value, metricType, err := repo.GetValue(mName)
 		if err != nil {
-			http.Error(rw, "undefined metric: "+mName, http.StatusNotFound)
+			http.Error(rw, err.Error()+" "+mName, http.StatusNotFound)
 			return
 		}
 		if metricType != mType {
