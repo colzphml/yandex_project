@@ -16,6 +16,7 @@ import (
 
 type Gauge float64
 type Counter int64
+type MetricValue interface{}
 
 func (g Gauge) String() string {
 	return strconv.FormatFloat(float64(g), 'g', -1, 64)
@@ -25,17 +26,12 @@ func (c Counter) String() string {
 	return strconv.FormatInt(int64(c), 10)
 }
 
-type MetricValue struct {
-	Value interface{}
-	Type  string
-}
-
 var (
 	ErrUndefinedType = errors.New("type of metric undefined")
 	ErrParseMetric   = errors.New("can't parse metric")
 )
 
-func GetRuntimeMetric(m *runtime.MemStats, fieldName string, fieldType string) (interface{}, error) {
+func GetRuntimeMetric(m *runtime.MemStats, fieldName string, fieldType string) (MetricValue, error) {
 	r := reflect.ValueOf(m)
 	if r.Kind() == reflect.Ptr {
 		r = r.Elem()
@@ -67,10 +63,10 @@ func CollectMetrics(cfg *utils.AgentConfig, runtime *runtime.MemStats, inc Count
 			log.Println(err.Error())
 			continue
 		}
-		metricsStore[k] = MetricValue{Value: value, Type: v}
+		metricsStore[k] = value
 	}
-	metricsStore["PollCount"] = MetricValue{Value: inc, Type: "counter"}
-	metricsStore["RandomValue"] = MetricValue{Value: rand.Float64(), Type: "gauge"}
+	metricsStore["PollCount"] = inc
+	metricsStore["RandomValue"] = Gauge(rand.Float64())
 	return metricsStore
 }
 
@@ -78,7 +74,7 @@ func SendMetrics(cfg *utils.AgentConfig, input map[string]MetricValue, client *h
 	var urlPrefix, urlPart string
 	urlPrefix = fmt.Sprintf("http://%v:%v/update", cfg.ServerAdress, cfg.ServerPort)
 	for k, v := range input {
-		urlPart = fmt.Sprintf("/%v/%v/%v", v.Type, k, v.Value)
+		urlPart = fmt.Sprintf("/%v/%v/%v", MetricType(v), k, v)
 		err := utils.HTTPSend(client, urlPrefix+urlPart)
 		if err != nil {
 			log.Println(err.Error())
@@ -87,24 +83,26 @@ func SendMetrics(cfg *utils.AgentConfig, input map[string]MetricValue, client *h
 	}
 }
 
-func ValueToString(a interface{}) string {
+func ValueToString(a MetricValue) string {
 	switch a := a.(type) {
 	case Gauge:
 		return a.String()
 	case Counter:
 		return a.String()
+	default:
+		return ""
 	}
-	return ""
 }
 
-func MetricType(a interface{}) string {
+func MetricType(a MetricValue) string {
 	switch a.(type) {
 	case Gauge:
 		return "gauge"
 	case Counter:
 		return "counter"
+	default:
+		return ""
 	}
-	return ""
 }
 
 func ConvertToMetric(metricType, metricValue string) (MetricValue, error) {
@@ -112,41 +110,31 @@ func ConvertToMetric(metricType, metricValue string) (MetricValue, error) {
 	case "gauge":
 		value, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
-			return MetricValue{}, ErrParseMetric
+			return struct{}{}, ErrParseMetric
 		}
-		return MetricValue{Type: metricType, Value: Gauge(value)}, nil
+		return Gauge(value), nil
 	case "counter":
 		value, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
-			return MetricValue{}, ErrParseMetric
+			return struct{}{}, ErrParseMetric
 		}
-		return MetricValue{Type: metricType, Value: Counter(value)}, nil
+		return Counter(value), nil
 	default:
-		return MetricValue{}, ErrUndefinedType
+		return struct{}{}, ErrUndefinedType
 	}
 }
 
-func MetricMulti(i interface{}) (int, error) {
-	switch i.(type) {
-	case Gauge:
-		return 0, nil
-	case Counter:
-		return 1, nil
-	default:
-		return -1, ErrUndefinedType
-	}
-}
-
-func NevValue(oldValue interface{}, metricName string, mValue MetricValue) (interface{}, error) {
-	if MetricType(oldValue) != mValue.Type {
+func NewValue(oldValue MetricValue, metricName string, newValue MetricValue) (MetricValue, error) {
+	newValueType := MetricType(newValue)
+	if MetricType(oldValue) != newValueType {
 		return nil, errors.New("metric have another type")
 	}
-	switch mValue.Type {
+	switch newValueType {
 	case "counter":
-		newValue := oldValue.(Counter) + mValue.Value.(Counter)
+		newValue := oldValue.(Counter) + newValue.(Counter)
 		return newValue, nil
 	case "gauge":
-		return mValue.Value.(Gauge), nil
+		return newValue.(Gauge), nil
 	default:
 		return nil, ErrUndefinedType
 	}

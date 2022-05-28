@@ -23,15 +23,15 @@ func NewMetricRepo() *MetricRepo {
 	}
 }
 
-func (m *MetricRepo) SaveMetric(metricName string, MetricValue metrics.MetricValue) error {
+func (m *MetricRepo) SaveMetric(metricName string, mValue metrics.MetricValue) error {
 	if v, ok := m.db[metricName]; ok {
-		newValue, err := metrics.NevValue(v, metricName, MetricValue)
+		newValue, err := metrics.NewValue(v, metricName, mValue)
 		if err != nil {
 			return err
 		}
 		m.db[metricName] = newValue
 	} else {
-		m.db[metricName] = MetricValue.Value
+		m.db[metricName] = mValue
 	}
 	return nil
 }
