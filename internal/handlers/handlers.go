@@ -44,7 +44,8 @@ func ListMetricsHandler(repo *storage.MetricRepo) http.HandlerFunc {
 		metricList := repo.ListMetrics()
 		_, err := io.WriteString(rw, strings.Join(metricList, "\n"))
 		if err != nil {
-			panic(err)
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
 		}
 	}
 }
