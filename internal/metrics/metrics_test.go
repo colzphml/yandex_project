@@ -9,9 +9,8 @@ import (
 
 func TestNewValue(t *testing.T) {
 	type args struct {
-		oldValue   MetricValue
-		metricName string
-		newValue   MetricValue
+		oldValue MetricValue
+		newValue MetricValue
 	}
 	tests := []struct {
 		name    string
@@ -22,9 +21,8 @@ func TestNewValue(t *testing.T) {
 		{
 			name: "Test #1: new gauge value",
 			args: args{
-				oldValue:   Gauge(500.123),
-				metricName: "Gauge",
-				newValue:   Gauge(100.321),
+				oldValue: Gauge(500.123),
+				newValue: Gauge(100.321),
 			},
 			want:    Gauge(100.321),
 			wantErr: false,
@@ -32,9 +30,8 @@ func TestNewValue(t *testing.T) {
 		{
 			name: "Test #2: new counter value",
 			args: args{
-				oldValue:   Counter(100),
-				metricName: "Counter",
-				newValue:   Counter(200),
+				oldValue: Counter(100),
+				newValue: Counter(200),
 			},
 			want:    Counter(300),
 			wantErr: false,
@@ -42,27 +39,25 @@ func TestNewValue(t *testing.T) {
 		{
 			name: "Test #3: another type #1",
 			args: args{
-				oldValue:   Counter(100),
-				metricName: "Counter",
-				newValue:   Gauge(200),
+				oldValue: Counter(100),
+				newValue: Gauge(200),
 			},
-			want:    struct{}{},
+			want:    Counter(-1),
 			wantErr: true,
 		},
 		{
 			name: "Test #4: another type #2",
 			args: args{
-				oldValue:   Gauge(100),
-				metricName: "Counter",
-				newValue:   Counter(200),
+				oldValue: Gauge(100),
+				newValue: Counter(200),
 			},
-			want:    struct{}{},
+			want:    Counter(-1),
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewValue(tt.args.oldValue, tt.args.metricName, tt.args.newValue)
+			got, err := NewValue(tt.args.oldValue, tt.args.newValue)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -117,7 +112,7 @@ func TestConvertToMetric(t *testing.T) {
 				metricType:  "counter",
 				metricValue: "500.123",
 			},
-			want:    struct{}{},
+			want:    Counter(-1),
 			wantErr: true,
 		},
 		{
@@ -126,7 +121,7 @@ func TestConvertToMetric(t *testing.T) {
 				metricType:  "ololo",
 				metricValue: "500.123",
 			},
-			want:    struct{}{},
+			want:    Counter(-1),
 			wantErr: true,
 		},
 	}
@@ -139,98 +134,6 @@ func TestConvertToMetric(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, tt.want, got)
 			}
-		})
-	}
-}
-
-func TestMetricType(t *testing.T) {
-	type args struct {
-		a MetricValue
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
-	}{
-		{
-			name: "Test #1: get Gauge type",
-			args: args{
-				a: Gauge(500),
-			},
-			want: "gauge",
-		},
-		{
-			name: "Test #2: get Counter type",
-			args: args{
-				a: Counter(500),
-			},
-			want: "counter",
-		},
-		{
-			name: "Test #3: get string type",
-			args: args{
-				a: "test",
-			},
-			want: "",
-		},
-		{
-			name: "Test #4: get int type",
-			args: args{
-				a: int(10),
-			},
-			want: "",
-		},
-		{
-			name: "Test #4: get float type",
-			args: args{
-				a: float64(10.01),
-			},
-			want: "",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := MetricType(tt.args.a)
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
-func TestValueToString(t *testing.T) {
-	type args struct {
-		a MetricValue
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
-	}{
-		{
-			name: "Test #1: get Gauge value",
-			args: args{
-				a: Gauge(500.123),
-			},
-			want: "500.123",
-		},
-		{
-			name: "Test #2: get Counter value",
-			args: args{
-				a: Counter(500),
-			},
-			want: "500",
-		},
-		{
-			name: "Test #3: get String value",
-			args: args{
-				a: "500",
-			},
-			want: "",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := ValueToString(tt.args.a)
-			assert.Equal(t, tt.want, got)
 		})
 	}
 }

@@ -14,18 +14,18 @@ type Repositories interface {
 }
 
 type MetricRepo struct {
-	db map[string]interface{}
+	db map[string]metrics.MetricValue
 }
 
 func NewMetricRepo() *MetricRepo {
 	return &MetricRepo{
-		db: make(map[string]interface{}),
+		db: make(map[string]metrics.MetricValue),
 	}
 }
 
 func (m *MetricRepo) SaveMetric(metricName string, mValue metrics.MetricValue) error {
 	if v, ok := m.db[metricName]; ok {
-		newValue, err := metrics.NewValue(v, metricName, mValue)
+		newValue, err := metrics.NewValue(v, mValue)
 		if err != nil {
 			return err
 		}
@@ -39,7 +39,7 @@ func (m *MetricRepo) SaveMetric(metricName string, mValue metrics.MetricValue) e
 func (m *MetricRepo) ListMetrics() []string {
 	var list []string
 	for k, v := range m.db {
-		list = append(list, k+":"+metrics.ValueToString(v))
+		list = append(list, k+":"+v.String())
 	}
 	sort.Slice(list, func(i, j int) bool {
 		return list[i] < list[j]
@@ -52,11 +52,7 @@ func (m *MetricRepo) GetValue(metricName string) (string, string, error) {
 	if !ok {
 		return "", "", errors.New("metric not stored")
 	}
-	mType := metrics.MetricType(v)
-	mValue := metrics.ValueToString(v)
-	if mType != "" && mValue != "" {
-		return mValue, mType, nil
-	} else {
-		return "", "", metrics.ErrUndefinedType
-	}
+	mType := v.Type()
+	mValue := v.String()
+	return mValue, mType, nil
 }

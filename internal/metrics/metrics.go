@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
@@ -16,14 +15,26 @@ import (
 
 type Gauge float64
 type Counter int64
-type MetricValue interface{}
+
+type MetricValue interface {
+	String() string
+	Type() string
+}
 
 func (g Gauge) String() string {
 	return strconv.FormatFloat(float64(g), 'g', -1, 64)
 }
 
+func (g Gauge) Type() string {
+	return "gauge"
+}
+
 func (c Counter) String() string {
 	return strconv.FormatInt(int64(c), 10)
+}
+
+func (c Counter) Type() string {
+	return "counter"
 }
 
 var (
@@ -72,9 +83,9 @@ func CollectMetrics(cfg *utils.AgentConfig, runtime *runtime.MemStats, inc Count
 
 func SendMetrics(cfg *utils.AgentConfig, input map[string]MetricValue, client *http.Client) {
 	var urlPrefix, urlPart string
-	urlPrefix = fmt.Sprintf("http://%v:%v/update", cfg.ServerAdress, cfg.ServerPort)
+	urlPrefix = "http://" + cfg.ServerAdress + ":" + strconv.Itoa(cfg.ServerPort)
 	for k, v := range input {
-		urlPart = fmt.Sprintf("/%v/%v/%v", MetricType(v), k, v)
+		urlPart = "/update/" + v.Type() + "/" + k + "/" + v.String()
 		err := utils.HTTPSend(client, urlPrefix+urlPart)
 		if err != nil {
 			log.Println(err.Error())
@@ -83,50 +94,28 @@ func SendMetrics(cfg *utils.AgentConfig, input map[string]MetricValue, client *h
 	}
 }
 
-func ValueToString(a MetricValue) string {
-	switch a := a.(type) {
-	case Gauge:
-		return a.String()
-	case Counter:
-		return a.String()
-	default:
-		return ""
-	}
-}
-
-func MetricType(a MetricValue) string {
-	switch a.(type) {
-	case Gauge:
-		return "gauge"
-	case Counter:
-		return "counter"
-	default:
-		return ""
-	}
-}
-
 func ConvertToMetric(metricType, metricValue string) (MetricValue, error) {
 	switch metricType {
 	case "gauge":
 		value, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
-			return struct{}{}, ErrParseMetric
+			return Gauge(-1), ErrParseMetric
 		}
 		return Gauge(value), nil
 	case "counter":
 		value, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
-			return struct{}{}, ErrParseMetric
+			return Counter(-1), ErrParseMetric
 		}
 		return Counter(value), nil
 	default:
-		return struct{}{}, ErrUndefinedType
+		return Counter(-1), ErrUndefinedType
 	}
 }
 
-func NewValue(oldValue MetricValue, metricName string, newValue MetricValue) (MetricValue, error) {
-	newValueType := MetricType(newValue)
-	if MetricType(oldValue) != newValueType {
+func NewValue(oldValue MetricValue, newValue MetricValue) (MetricValue, error) {
+	newValueType := newValue.Type()
+	if oldValue.Type() != newValueType {
 		return nil, errors.New("metric have another type")
 	}
 	switch newValueType {

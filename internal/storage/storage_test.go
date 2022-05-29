@@ -23,7 +23,7 @@ func TestMetricRepo_GetValue(t *testing.T) {
 		{
 			name: "Test #1: get Gauge value",
 			fields: MetricRepo{
-				db: map[string]interface{}{
+				db: map[string]metrics.MetricValue{
 					"Gauge":   metrics.Gauge(500.123),
 					"Counter": metrics.Counter(200),
 				}},
@@ -37,7 +37,7 @@ func TestMetricRepo_GetValue(t *testing.T) {
 		{
 			name: "Test #2: get Counter value",
 			fields: MetricRepo{
-				db: map[string]interface{}{
+				db: map[string]metrics.MetricValue{
 					"Gauge":   metrics.Gauge(500.123),
 					"Counter": metrics.Counter(200),
 				}},
@@ -51,7 +51,7 @@ func TestMetricRepo_GetValue(t *testing.T) {
 		{
 			name: "Test #2: get unknown metric",
 			fields: MetricRepo{
-				db: map[string]interface{}{
+				db: map[string]metrics.MetricValue{
 					"Gauge":   metrics.Gauge(500.123),
 					"Counter": metrics.Counter(200),
 				}},
@@ -95,7 +95,7 @@ func TestMetricRepo_SaveMetric(t *testing.T) {
 		{
 			name: "Test #1: add Gauge value",
 			fields: MetricRepo{
-				db: map[string]interface{}{
+				db: map[string]metrics.MetricValue{
 					"Gauge":   metrics.Gauge(500.123),
 					"Counter": metrics.Counter(200),
 				}},
@@ -104,7 +104,7 @@ func TestMetricRepo_SaveMetric(t *testing.T) {
 				MetricValue: metrics.Gauge(300.123),
 			},
 			wantRepo: MetricRepo{
-				db: map[string]interface{}{
+				db: map[string]metrics.MetricValue{
 					"Gauge":   metrics.Gauge(300.123),
 					"Counter": metrics.Counter(200),
 				}},
@@ -113,7 +113,7 @@ func TestMetricRepo_SaveMetric(t *testing.T) {
 		{
 			name: "Test #2: add Counter value",
 			fields: MetricRepo{
-				db: map[string]interface{}{
+				db: map[string]metrics.MetricValue{
 					"Gauge":   metrics.Gauge(500.123),
 					"Counter": metrics.Counter(200),
 				}},
@@ -122,7 +122,7 @@ func TestMetricRepo_SaveMetric(t *testing.T) {
 				MetricValue: metrics.Counter(300),
 			},
 			wantRepo: MetricRepo{
-				db: map[string]interface{}{
+				db: map[string]metrics.MetricValue{
 					"Gauge":   metrics.Gauge(500.123),
 					"Counter": metrics.Counter(500),
 				}},
@@ -131,7 +131,7 @@ func TestMetricRepo_SaveMetric(t *testing.T) {
 		{
 			name: "Test #3: add new metric",
 			fields: MetricRepo{
-				db: map[string]interface{}{
+				db: map[string]metrics.MetricValue{
 					"Gauge":   metrics.Gauge(500.123),
 					"Counter": metrics.Counter(200),
 				}},
@@ -140,7 +140,7 @@ func TestMetricRepo_SaveMetric(t *testing.T) {
 				MetricValue: metrics.Counter(200),
 			},
 			wantRepo: MetricRepo{
-				db: map[string]interface{}{
+				db: map[string]metrics.MetricValue{
 					"Gauge":     metrics.Gauge(500.123),
 					"Counter":   metrics.Counter(200),
 					"NewMetric": metrics.Counter(200),
@@ -150,7 +150,7 @@ func TestMetricRepo_SaveMetric(t *testing.T) {
 		{
 			name: "Test #4: add bad type",
 			fields: MetricRepo{
-				db: map[string]interface{}{
+				db: map[string]metrics.MetricValue{
 					"Gauge":   metrics.Gauge(500.123),
 					"Counter": metrics.Counter(200),
 				}},
@@ -159,7 +159,7 @@ func TestMetricRepo_SaveMetric(t *testing.T) {
 				MetricValue: metrics.Counter(200),
 			},
 			wantRepo: MetricRepo{
-				db: map[string]interface{}{},
+				db: map[string]metrics.MetricValue{},
 			},
 			wantErr: true,
 		},
@@ -189,7 +189,7 @@ func TestMetricRepo_ListMetrics(t *testing.T) {
 		{
 			name: "Test #1: list metrics",
 			fields: MetricRepo{
-				db: map[string]interface{}{
+				db: map[string]metrics.MetricValue{
 					"Gauge":   metrics.Gauge(500.123),
 					"Counter": metrics.Counter(200),
 				}},
