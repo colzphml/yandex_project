@@ -54,17 +54,17 @@ func GetValueHandler(repo *storage.MetricRepo) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		mName := chi.URLParam(r, "metric_name")
 		mType := chi.URLParam(r, "metric_type")
-		metricValue, metricType, err := repo.GetValue(mName)
+		metricValue, err := repo.GetValue(mName)
 		if err != nil {
 			http.Error(rw, err.Error()+" "+mName, http.StatusNotFound)
 			return
 		}
-		if metricType != mType {
+		if metricValue.Type() != mType {
 			http.Error(rw, "this metric have another type: "+mName, http.StatusNotFound)
 			return
 		}
 		rw.Header().Set("Content-Type", "text/plain")
 		rw.WriteHeader(http.StatusOK)
-		rw.Write([]byte(metricValue))
+		rw.Write([]byte(metricValue.String()))
 	}
 }

@@ -47,12 +47,10 @@ func (m *MetricRepo) ListMetrics() []string {
 	return list
 }
 
-func (m *MetricRepo) GetValue(metricName string) (string, string, error) {
+func (m *MetricRepo) GetValue(metricName string) (metrics.MetricValue, error) {
 	v, ok := m.db[metricName]
 	if !ok {
-		return "", "", errors.New("metric not stored")
+		return metrics.Counter(-1), errors.New("metric not stored")
 	}
-	mType := v.Type()
-	mValue := v.String()
-	return mValue, mType, nil
+	return v, nil
 }

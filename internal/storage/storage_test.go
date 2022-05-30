@@ -68,13 +68,13 @@ func TestMetricRepo_GetValue(t *testing.T) {
 			m := MetricRepo{
 				db: tt.fields.db,
 			}
-			strValue, strType, err := m.GetValue(tt.args.metricName)
+			mValue, err := m.GetValue(tt.args.metricName)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				assert.Equal(t, tt.wantValue, strValue)
-				assert.Equal(t, tt.wantType, strType)
+				assert.Equal(t, tt.wantValue, mValue.String())
+				assert.Equal(t, tt.wantType, mValue.Type())
 			}
 		})
 	}
