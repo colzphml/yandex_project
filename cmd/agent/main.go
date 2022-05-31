@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 func main() {
 	//read config file
 	cfg := utils.LoadAgentConfig()
+	fmt.Println(cfg)
 	//variables for send data
 	var runtimeState runtime.MemStats
 	//slice or map??? append = create new slice, add new element to map it is better than append??
@@ -29,8 +31,8 @@ func main() {
 	//for additional metric RandomValue
 	rand.Seed(time.Now().UnixNano())
 	//can we get collision every 5th tickerPoll and every tickerReport??? Maybe send in other goroutine??
-	tickerPoll := time.NewTicker(time.Duration(cfg.PollInterval) * time.Second)
-	tickerReport := time.NewTicker(time.Duration(cfg.ReportInterval) * time.Second)
+	tickerPoll := time.NewTicker(cfg.PollInterval)
+	tickerReport := time.NewTicker(cfg.ReportInterval)
 	//client for send
 	client := &http.Client{}
 	//maybe there is a better way

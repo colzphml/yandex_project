@@ -42,7 +42,7 @@ func TestNewValue(t *testing.T) {
 				oldValue: Counter(100),
 				newValue: Gauge(200),
 			},
-			want:    Counter(-1),
+			want:    nil,
 			wantErr: true,
 		},
 		{
@@ -51,7 +51,7 @@ func TestNewValue(t *testing.T) {
 				oldValue: Gauge(100),
 				newValue: Counter(200),
 			},
-			want:    Counter(-1),
+			want:    nil,
 			wantErr: true,
 		},
 	}
@@ -112,7 +112,7 @@ func TestConvertToMetric(t *testing.T) {
 				metricType:  "counter",
 				metricValue: "500.123",
 			},
-			want:    Counter(-1),
+			want:    nil,
 			wantErr: true,
 		},
 		{
@@ -121,7 +121,7 @@ func TestConvertToMetric(t *testing.T) {
 				metricType:  "ololo",
 				metricValue: "500.123",
 			},
-			want:    Counter(-1),
+			want:    nil,
 			wantErr: true,
 		},
 	}

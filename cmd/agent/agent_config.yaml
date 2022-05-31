@@ -1,7 +1,7 @@
 ServerAdress: "127.0.0.1"
 ServerPort: 8080
-PollInterval: 2
-ReportInterval: 10
+PollInterval: "2s"
+ReportInterval: "10s"
 Metrics:
   Alloc: gauge
   BuckHashSys: gauge

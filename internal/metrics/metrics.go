@@ -99,17 +99,17 @@ func ConvertToMetric(metricType, metricValue string) (MetricValue, error) {
 	case "gauge":
 		value, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
-			return Gauge(-1), ErrParseMetric
+			return nil, ErrParseMetric
 		}
 		return Gauge(value), nil
 	case "counter":
 		value, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
-			return Counter(-1), ErrParseMetric
+			return nil, ErrParseMetric
 		}
 		return Counter(value), nil
 	default:
-		return Counter(-1), ErrUndefinedType
+		return nil, ErrUndefinedType
 	}
 }
 

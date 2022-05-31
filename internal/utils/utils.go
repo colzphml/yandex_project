@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -11,8 +12,8 @@ import (
 type AgentConfig struct {
 	ServerAdress   string            `yaml:"ServerAdress"`
 	ServerPort     int               `yaml:"ServerPort"`
-	PollInterval   int               `yaml:"PollInterval"`
-	ReportInterval int               `yaml:"ReportInterval"`
+	PollInterval   time.Duration     `yaml:"PollInterval"`
+	ReportInterval time.Duration     `yaml:"ReportInterval"`
 	Metrics        map[string]string `yaml:"Metrics"`
 }
 
@@ -20,8 +21,8 @@ func LoadAgentConfig() *AgentConfig {
 	cfg := &AgentConfig{
 		ServerAdress:   "127.0.0.1",
 		ServerPort:     8080,
-		PollInterval:   2,
-		ReportInterval: 10,
+		PollInterval:   time.Duration(2 * time.Second),
+		ReportInterval: time.Duration(10 * time.Second),
 		Metrics: map[string]string{
 			"Alloc":         "gauge",
 			"BuckHashSys":   "gauge",

@@ -10,7 +10,7 @@ import (
 type Repositories interface {
 	SaveMetric(metricName string, MetricValue metrics.MetricValue) error
 	ListMetrics() []string
-	GetValue(metricName string) (string, error)
+	GetValue(metricName string) (metrics.MetricValue, error)
 }
 
 type MetricRepo struct {

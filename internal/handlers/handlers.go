@@ -10,7 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func SaveHandler(repo *storage.MetricRepo) http.HandlerFunc {
+func SaveHandler(repo storage.Repositories) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		metricType := chi.URLParam(r, "metric_type")
 		metricName := chi.URLParam(r, "metric_name")
@@ -39,7 +39,7 @@ func SaveHandler(repo *storage.MetricRepo) http.HandlerFunc {
 	}
 }
 
-func ListMetricsHandler(repo *storage.MetricRepo) http.HandlerFunc {
+func ListMetricsHandler(repo storage.Repositories) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		metricList := repo.ListMetrics()
 		_, err := io.WriteString(rw, strings.Join(metricList, "\n"))
@@ -50,7 +50,7 @@ func ListMetricsHandler(repo *storage.MetricRepo) http.HandlerFunc {
 	}
 }
 
-func GetValueHandler(repo *storage.MetricRepo) http.HandlerFunc {
+func GetValueHandler(repo storage.Repositories) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		mName := chi.URLParam(r, "metric_name")
 		mType := chi.URLParam(r, "metric_type")
