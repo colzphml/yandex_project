@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 
@@ -10,16 +12,16 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func SaveHandler(repo storage.Repositories) http.HandlerFunc {
+func SaveHandler(repo storage.Repositorier) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
-		metricType := chi.URLParam(r, "metric_type")
 		metricName := chi.URLParam(r, "metric_name")
+		metricType := chi.URLParam(r, "metric_type")
 		metricValue := chi.URLParam(r, "metric_value")
 		if metricName == "" || metricValue == "" {
 			http.Error(rw, "can't parse metric: "+r.URL.Path, http.StatusNotFound)
 			return
 		}
-		mValue, err := metrics.ConvertToMetric(metricType, metricValue)
+		mValue, err := metrics.ConvertToMetric(metricName, metricType, metricValue)
 		switch err {
 		case metrics.ErrParseMetric:
 			http.Error(rw, err.Error()+" "+r.URL.Path, http.StatusBadRequest)
@@ -28,7 +30,7 @@ func SaveHandler(repo storage.Repositories) http.HandlerFunc {
 			http.Error(rw, err.Error()+" "+r.URL.Path, http.StatusNotImplemented)
 			return
 		}
-		err = repo.SaveMetric(metricName, mValue)
+		err = repo.SaveMetric(mValue)
 		if err != nil {
 			http.Error(rw, "can't save metric: "+r.URL.Path, http.StatusBadRequest)
 			return
@@ -39,7 +41,19 @@ func SaveHandler(repo storage.Repositories) http.HandlerFunc {
 	}
 }
 
-func ListMetricsHandler(repo storage.Repositories) http.HandlerFunc {
+func SaveJSONHandler() http.HandlerFunc {
+	return func(rw http.ResponseWriter, r *http.Request) {
+		var m metrics.Metrics
+		err := json.NewDecoder(r.Body).Decode(&m)
+		if err != nil {
+			http.Error(rw, "can't save metric: "+r.URL.Path, http.StatusBadRequest)
+			return
+		}
+		log.Println(m)
+	}
+}
+
+func ListMetricsHandler(repo storage.Repositorier) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		metricList := repo.ListMetrics()
 		_, err := io.WriteString(rw, strings.Join(metricList, "\n"))
@@ -50,7 +64,7 @@ func ListMetricsHandler(repo storage.Repositories) http.HandlerFunc {
 	}
 }
 
-func GetValueHandler(repo storage.Repositories) http.HandlerFunc {
+func GetValueHandler(repo storage.Repositorier) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		mName := chi.URLParam(r, "metric_name")
 		mType := chi.URLParam(r, "metric_type")
@@ -59,12 +73,12 @@ func GetValueHandler(repo storage.Repositories) http.HandlerFunc {
 			http.Error(rw, err.Error()+" "+mName, http.StatusNotFound)
 			return
 		}
-		if metricValue.Type() != mType {
+		if metricValue.MType != mType {
 			http.Error(rw, "this metric have another type: "+mName, http.StatusNotFound)
 			return
 		}
 		rw.Header().Set("Content-Type", "text/plain")
 		rw.WriteHeader(http.StatusOK)
-		rw.Write([]byte(metricValue.String()))
+		rw.Write([]byte(metricValue.ValueString()))
 	}
 }

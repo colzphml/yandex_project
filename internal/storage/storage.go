@@ -7,31 +7,31 @@ import (
 	"github.com/colzphml/yandex_project/internal/metrics"
 )
 
-type Repositories interface {
-	SaveMetric(metricName string, MetricValue metrics.MetricValue) error
+type Repositorier interface {
+	SaveMetric(metric metrics.Metrics) error
 	ListMetrics() []string
-	GetValue(metricName string) (metrics.MetricValue, error)
+	GetValue(metricName string) (metrics.Metrics, error)
 }
 
 type MetricRepo struct {
-	db map[string]metrics.MetricValue
+	db map[string]metrics.Metrics
 }
 
 func NewMetricRepo() *MetricRepo {
 	return &MetricRepo{
-		db: make(map[string]metrics.MetricValue),
+		db: make(map[string]metrics.Metrics),
 	}
 }
 
-func (m *MetricRepo) SaveMetric(metricName string, mValue metrics.MetricValue) error {
-	if v, ok := m.db[metricName]; ok {
-		newValue, err := metrics.NewValue(v, mValue)
+func (m *MetricRepo) SaveMetric(metric metrics.Metrics) error {
+	if v, ok := m.db[metric.ID]; ok {
+		newValue, err := metrics.NewValue(v, metric)
 		if err != nil {
 			return err
 		}
-		m.db[metricName] = newValue
+		m.db[metric.ID] = newValue
 	} else {
-		m.db[metricName] = mValue
+		m.db[metric.ID] = metric
 	}
 	return nil
 }
@@ -39,7 +39,7 @@ func (m *MetricRepo) SaveMetric(metricName string, mValue metrics.MetricValue) e
 func (m *MetricRepo) ListMetrics() []string {
 	var list []string
 	for k, v := range m.db {
-		list = append(list, k+":"+v.String())
+		list = append(list, k+":"+v.ValueString())
 	}
 	sort.Slice(list, func(i, j int) bool {
 		return list[i] < list[j]
@@ -47,10 +47,10 @@ func (m *MetricRepo) ListMetrics() []string {
 	return list
 }
 
-func (m *MetricRepo) GetValue(metricName string) (metrics.MetricValue, error) {
+func (m *MetricRepo) GetValue(metricName string) (metrics.Metrics, error) {
 	v, ok := m.db[metricName]
 	if !ok {
-		return metrics.Counter(-1), errors.New("metric not stored")
+		return metrics.Metrics{}, errors.New("metric not stored")
 	}
 	return v, nil
 }

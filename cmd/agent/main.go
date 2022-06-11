@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
@@ -18,16 +17,15 @@ import (
 func main() {
 	//read config file
 	cfg := utils.LoadAgentConfig()
-	fmt.Println(cfg)
 	//variables for send data
 	var runtimeState runtime.MemStats
 	//slice or map??? append = create new slice, add new element to map it is better than append??
-	metricsStore := make(map[string]metrics.MetricValue)
+	metricsStore := make(map[string]metrics.Metrics)
 	//for close programm by signal
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	//for additional metric PollCount
-	var pollCouter metrics.Counter = 0
+	var pollCouter int64
 	//for additional metric RandomValue
 	rand.Seed(time.Now().UnixNano())
 	//can we get collision every 5th tickerPoll and every tickerReport??? Maybe send in other goroutine??
@@ -42,6 +40,7 @@ Loop:
 		case <-tickerPoll.C:
 			runtime.ReadMemStats(&runtimeState)
 			metricsStore = metrics.CollectMetrics(cfg, &runtimeState, pollCouter)
+			//metrics.SendJSONMetrics(cfg, metricsStore, client)
 			pollCouter++
 		case <-tickerReport.C:
 			metrics.SendMetrics(cfg, metricsStore, client)
