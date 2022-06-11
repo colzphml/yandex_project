@@ -28,4 +28,4 @@ vendor/
 .DS_Store
 
 #_test.go
-*_test.go
+*test.go
