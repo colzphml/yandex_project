@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 
@@ -41,15 +40,21 @@ func SaveHandler(repo storage.Repositorier) http.HandlerFunc {
 	}
 }
 
-func SaveJSONHandler() http.HandlerFunc {
+func SaveJSONHandler(repo storage.Repositorier) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		var m metrics.Metrics
-		err := json.NewDecoder(r.Body).Decode(&m)
+		if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
+			http.Error(rw, "can't decode metric: "+r.URL.Path, http.StatusBadRequest)
+			return
+		}
+		err := repo.SaveMetric(m)
 		if err != nil {
 			http.Error(rw, "can't save metric: "+r.URL.Path, http.StatusBadRequest)
 			return
 		}
-		log.Println(m)
+		rw.Header().Set("Content-Type", "text/plain")
+		rw.WriteHeader(http.StatusOK)
+		rw.Write([]byte("Metric saved"))
 	}
 }
 
@@ -80,5 +85,32 @@ func GetValueHandler(repo storage.Repositorier) http.HandlerFunc {
 		rw.Header().Set("Content-Type", "text/plain")
 		rw.WriteHeader(http.StatusOK)
 		rw.Write([]byte(metricValue.ValueString()))
+	}
+}
+
+func GetJSONValueHandler(repo storage.Repositorier) http.HandlerFunc {
+	return func(rw http.ResponseWriter, r *http.Request) {
+		var m metrics.Metrics
+		if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
+			http.Error(rw, "can't decode metric: "+r.URL.Path, http.StatusBadRequest)
+			return
+		}
+		metricValue, err := repo.GetValue(m.ID)
+		if err != nil {
+			http.Error(rw, err.Error()+" "+m.ID, http.StatusNotFound)
+			return
+		}
+		if metricValue.MType != m.MType {
+			http.Error(rw, "this metric have another type: "+m.ID, http.StatusNotFound)
+			return
+		}
+		rw.Header().Set("Content-Type", "application/json")
+		rw.WriteHeader(http.StatusOK)
+		js, err := json.Marshal(metricValue)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		rw.Write(js)
 	}
 }

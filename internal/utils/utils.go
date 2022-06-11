@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bytes"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -93,6 +94,24 @@ func HTTPSend(client *http.Client, url string) error {
 		return err
 	}
 	request.Header.Set("Content-Type", "text/plain")
+	response, err := client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != 200 {
+		return err
+	}
+	return nil
+}
+
+func HTTPSendMetric(client *http.Client, url string, postBody []byte) error {
+	body := bytes.NewBuffer(postBody)
+	request, err := http.NewRequest(http.MethodPost, url, body)
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Content-Type", "application/json")
 	response, err := client.Do(request)
 	if err != nil {
 		return err

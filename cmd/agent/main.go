@@ -40,10 +40,10 @@ Loop:
 		case <-tickerPoll.C:
 			runtime.ReadMemStats(&runtimeState)
 			metricsStore = metrics.CollectMetrics(cfg, &runtimeState, pollCouter)
-			//metrics.SendJSONMetrics(cfg, metricsStore, client)
 			pollCouter++
 		case <-tickerReport.C:
 			metrics.SendMetrics(cfg, metricsStore, client)
+			metrics.SendJSONMetrics(cfg, metricsStore, client)
 		case <-sigChan:
 			log.Println("close program")
 			break Loop

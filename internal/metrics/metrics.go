@@ -32,50 +32,6 @@ func (m Metrics) ValueString() string {
 	}
 }
 
-func NewMetrics(name string, value MetricValue) (Metrics, error) {
-	var result Metrics
-	result.ID = name
-	result.MType = value.Type()
-	switch result.MType {
-	case "gauge":
-		var v float64
-		v = float64(value.(Gauge))
-		result.Value = &v
-	case "counter":
-		var v int64
-		v = int64(value.(Counter))
-		result.Delta = &v
-	default:
-		return Metrics{}, ErrUndefinedType
-	}
-
-	return result, nil
-}
-
-type Gauge float64
-type Counter int64
-
-type MetricValue interface {
-	String() string
-	Type() string
-}
-
-func (g Gauge) String() string {
-	return strconv.FormatFloat(float64(g), 'g', -1, 64)
-}
-
-func (g Gauge) Type() string {
-	return "gauge"
-}
-
-func (c Counter) String() string {
-	return strconv.FormatInt(int64(c), 10)
-}
-
-func (c Counter) Type() string {
-	return "counter"
-}
-
 var (
 	ErrUndefinedType = errors.New("type of metric undefined")
 	ErrParseMetric   = errors.New("can't parse metric")
@@ -153,15 +109,18 @@ func SendMetrics(cfg *utils.AgentConfig, input map[string]Metrics, client *http.
 }
 
 func SendJSONMetrics(cfg *utils.AgentConfig, input map[string]Metrics, client *http.Client) {
-	//var urlPrefix, urlPart string
-	//urlPrefix = "http://" + cfg.ServerAdress + ":" + strconv.Itoa(cfg.ServerPort)
+	urlPrefix := "http://" + cfg.ServerAdress + ":" + strconv.Itoa(cfg.ServerPort) + "/update/"
 	for _, v := range input {
-		js, err := json.MarshalIndent(v, "", "	")
+		postBody, err := json.Marshal(v)
 		if err != nil {
 			log.Println(err.Error())
 			continue
 		}
-		log.Println(string(js))
+		err = utils.HTTPSendMetric(client, urlPrefix, postBody)
+		if err != nil {
+			log.Println(err.Error())
+			continue
+		}
 	}
 }
 
