@@ -13,6 +13,7 @@ import (
 
 func main() {
 	cfg := utils.LoadServerConfig()
+	log.Println(cfg)
 	repo := storage.NewMetricRepo()
 	repoJSON := storage.NewMetricRepo()
 	r := chi.NewRouter()
