@@ -12,7 +12,7 @@ import (
 )
 
 type AgentConfig struct {
-	ServerAdress   string            `yaml:"ServerAdress" env:"ADRESS"`
+	ServerAdress   string            `yaml:"ServerAdress" env:"ADDRESS"`
 	PollInterval   time.Duration     `yaml:"PollInterval" env:"POLL_INTERVAL"`
 	ReportInterval time.Duration     `yaml:"ReportInterval" env:"REPORT_INTERVAL"`
 	Metrics        map[string]string `yaml:"Metrics"`
