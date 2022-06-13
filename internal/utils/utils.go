@@ -7,21 +7,21 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/caarlos0/env"
 	"gopkg.in/yaml.v3"
 )
 
 type AgentConfig struct {
-	ServerAdress   string            `yaml:"ServerAdress"`
-	ServerPort     int               `yaml:"ServerPort"`
-	PollInterval   time.Duration     `yaml:"PollInterval"`
-	ReportInterval time.Duration     `yaml:"ReportInterval"`
+	ServerAdress   string            `yaml:"ServerAdress" env:"ADRESS"`
+	PollInterval   time.Duration     `yaml:"PollInterval" env:"POLL_INTERVAL"`
+	ReportInterval time.Duration     `yaml:"ReportInterval" env:"REPORT_INTERVAL"`
 	Metrics        map[string]string `yaml:"Metrics"`
 }
 
 func LoadAgentConfig() *AgentConfig {
+	//default config
 	cfg := &AgentConfig{
-		ServerAdress:   "127.0.0.1",
-		ServerPort:     8080,
+		ServerAdress:   "127.0.0.1:8080",
 		PollInterval:   time.Duration(2 * time.Second),
 		ReportInterval: time.Duration(10 * time.Second),
 		Metrics: map[string]string{
@@ -54,6 +54,7 @@ func LoadAgentConfig() *AgentConfig {
 			"TotalAlloc":    "gauge",
 		},
 	}
+	//yaml config
 	yfile, err := ioutil.ReadFile("agent_config.yaml")
 	if err != nil {
 		log.Println(err.Error())
@@ -63,25 +64,35 @@ func LoadAgentConfig() *AgentConfig {
 	if err != nil {
 		log.Println(err.Error())
 	}
+	//env config
+	err = env.Parse(cfg)
+	if err != nil {
+		log.Println(err.Error())
+	}
 	return cfg
 }
 
 type ServerConfig struct {
 	ServerAdress string `yaml:"ServerAdress"`
-	ServerPort   int    `yaml:"ServerPort"`
 }
 
 func LoadServerConfig() *ServerConfig {
+	//default config
 	cfg := &ServerConfig{
-		ServerAdress: "127.0.0.1",
-		ServerPort:   8080,
+		ServerAdress: "127.0.0.1:8080",
 	}
+	//yaml config
 	yfile, err := ioutil.ReadFile("server_config.yaml")
 	if err != nil {
 		log.Println(err.Error())
 		return cfg
 	}
 	err = yaml.Unmarshal(yfile, &cfg)
+	if err != nil {
+		log.Println(err.Error())
+	}
+	//env config
+	err = env.Parse(cfg)
 	if err != nil {
 		log.Println(err.Error())
 	}

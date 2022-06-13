@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/colzphml/yandex_project/internal/handlers"
 	"github.com/colzphml/yandex_project/internal/storage"
@@ -26,5 +25,5 @@ func main() {
 	r.Get("/value/{metric_type}/{metric_name}", handlers.GetValueHandler(repo))
 	r.Post("/value/", handlers.GetJSONValueHandler(repoJSON))
 	r.Get("/", handlers.ListMetricsHandler(repo))
-	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(cfg.ServerPort), r))
+	log.Fatal(http.ListenAndServe(cfg.ServerAdress, r))
 }

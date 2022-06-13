@@ -2,20 +2,27 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/caarlos0/env/v6"
 )
 
 type Config struct {
-	User string `env:"USER"`
+	Adress         string        `env:"ADRESS"`
+	ReportInterval time.Duration `env:"REPORT_INTERVAL"`
+	PollInterval   time.Duration `env:"POLL_INTERVAL"`
 }
 
 func main() {
-	var cfg Config
-	err := env.Parse(&cfg)
+	cfg := &Config{
+		Adress:         "127.0.0.1",
+		ReportInterval: time.Duration(2 * time.Second),
+		PollInterval:   time.Duration(10 * time.Second),
+	}
+	fmt.Println(cfg)
+	err := env.Parse(cfg)
 	if err != nil {
 		panic(err)
 	}
-
-	fmt.Printf("Current user is %s\n", cfg.User)
+	fmt.Println(cfg)
 }
