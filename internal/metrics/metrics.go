@@ -97,7 +97,7 @@ func CollectMetrics(cfg *utils.AgentConfig, runtime *runtime.MemStats, inc int64
 
 func SendMetrics(cfg *utils.AgentConfig, input map[string]Metrics, client *http.Client) {
 	var urlPrefix, urlPart string
-	urlPrefix = "http://" + cfg.ServerAdress
+	urlPrefix = "http://" + cfg.ServerAddress
 	for k, v := range input {
 		urlPart = "/update/" + v.MType + "/" + k + "/" + v.ValueString()
 		err := utils.HTTPSend(client, urlPrefix+urlPart)
@@ -109,7 +109,7 @@ func SendMetrics(cfg *utils.AgentConfig, input map[string]Metrics, client *http.
 }
 
 func SendJSONMetrics(cfg *utils.AgentConfig, input map[string]Metrics, client *http.Client) {
-	urlPrefix := "http://" + cfg.ServerAdress + "/update/"
+	urlPrefix := "http://" + cfg.ServerAddress + "/update/"
 	for _, v := range input {
 		postBody, err := json.Marshal(v)
 		if err != nil {

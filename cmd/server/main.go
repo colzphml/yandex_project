@@ -25,5 +25,5 @@ func main() {
 	r.Get("/value/{metric_type}/{metric_name}", handlers.GetValueHandler(repo))
 	r.Post("/value/", handlers.GetJSONValueHandler(repoJSON))
 	r.Get("/", handlers.ListMetricsHandler(repo))
-	log.Fatal(http.ListenAndServe(cfg.ServerAdress, r))
+	log.Fatal(http.ListenAndServe(cfg.ServerAddress, r))
 }

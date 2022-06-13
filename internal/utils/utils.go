@@ -12,7 +12,7 @@ import (
 )
 
 type AgentConfig struct {
-	ServerAdress   string            `yaml:"ServerAdress" env:"ADDRESS"`
+	ServerAddress  string            `yaml:"ServerAddress" env:"ADDRESS"`
 	PollInterval   time.Duration     `yaml:"PollInterval" env:"POLL_INTERVAL"`
 	ReportInterval time.Duration     `yaml:"ReportInterval" env:"REPORT_INTERVAL"`
 	Metrics        map[string]string `yaml:"Metrics"`
@@ -21,7 +21,7 @@ type AgentConfig struct {
 func LoadAgentConfig() *AgentConfig {
 	//default config
 	cfg := &AgentConfig{
-		ServerAdress:   "127.0.0.1:8080",
+		ServerAddress:  "127.0.0.1:8080",
 		PollInterval:   time.Duration(2 * time.Second),
 		ReportInterval: time.Duration(10 * time.Second),
 		Metrics: map[string]string{
@@ -73,13 +73,13 @@ func LoadAgentConfig() *AgentConfig {
 }
 
 type ServerConfig struct {
-	ServerAdress string `yaml:"ServerAdress"`
+	ServerAddress string `yaml:"ServerAddress" env:"ADDRESS"`
 }
 
 func LoadServerConfig() *ServerConfig {
 	//default config
 	cfg := &ServerConfig{
-		ServerAdress: "127.0.0.1:8080",
+		ServerAddress: "127.0.0.1:8080",
 	}
 	//yaml config
 	yfile, err := ioutil.ReadFile("server_config.yaml")
