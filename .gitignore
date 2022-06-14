@@ -29,3 +29,6 @@ vendor/
 
 #_test.go
 *test.go
+
+#db ignore
+cmd/server/tmp

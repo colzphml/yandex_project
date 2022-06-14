@@ -8,6 +8,7 @@ import (
 
 	"github.com/colzphml/yandex_project/internal/metrics"
 	"github.com/colzphml/yandex_project/internal/storage"
+	"github.com/colzphml/yandex_project/internal/utils"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -58,7 +59,7 @@ func SaveJSONHandler(repo storage.Repositorier) http.HandlerFunc {
 	}
 }
 
-func ListMetricsHandler(repo storage.Repositorier) http.HandlerFunc {
+func ListMetricsHandler(repo storage.Repositorier, cfg *utils.ServerConfig) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		metricList := repo.ListMetrics()
 		_, err := io.WriteString(rw, strings.Join(metricList, "\n"))

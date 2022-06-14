@@ -1,8 +1,13 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/colzphml/yandex_project/internal/handlers"
 	"github.com/colzphml/yandex_project/internal/storage"
@@ -11,10 +16,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func main() {
-	cfg := utils.LoadServerConfig()
-	repo := storage.NewMetricRepo()
-	repoJSON := storage.NewMetricRepo()
+func HTTPServer(cfg *utils.ServerConfig, repo *storage.MetricRepo, repoJSON *storage.MetricRepo) *http.Server {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -24,6 +26,52 @@ func main() {
 	r.Post("/update/", handlers.SaveJSONHandler(repoJSON))
 	r.Get("/value/{metric_type}/{metric_name}", handlers.GetValueHandler(repo))
 	r.Post("/value/", handlers.GetJSONValueHandler(repoJSON))
-	r.Get("/", handlers.ListMetricsHandler(repo))
-	log.Fatal(http.ListenAndServe(cfg.ServerAddress, r))
+	r.Get("/", handlers.ListMetricsHandler(repo, cfg))
+	srv := &http.Server{
+		Addr:    cfg.ServerAddress,
+		Handler: r,
+	}
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatal(err)
+		}
+	}()
+	return srv
+}
+
+func main() {
+	cfg := utils.LoadServerConfig()
+	repo, err := storage.NewMetricRepo(cfg)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	repoJSON, err := storage.NewMetricRepo(cfg)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+	tickerSave := time.NewTicker(cfg.StoreInterval)
+	srv := HTTPServer(cfg, repo, repoJSON)
+Loop:
+	for {
+		select {
+		case <-tickerSave.C:
+			err := repoJSON.StoreMetric(cfg)
+			if err != nil {
+				log.Println(err.Error())
+			}
+		case <-sigChan:
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer func() {
+				repoJSON.StoreMetric(cfg)
+				cancel()
+			}()
+			if err := srv.Shutdown(ctx); err != nil {
+				log.Fatal(err)
+			}
+			log.Println("server stopped")
+			break Loop
+		}
+	}
 }

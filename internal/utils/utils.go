@@ -73,13 +73,19 @@ func LoadAgentConfig() *AgentConfig {
 }
 
 type ServerConfig struct {
-	ServerAddress string `yaml:"ServerAddress" env:"ADDRESS"`
+	ServerAddress string        `yaml:"ServerAddress" env:"ADDRESS"`
+	StoreInterval time.Duration `yaml:"StoreInterval" env:"STORE_INTERVAL"`
+	StoreFile     string        `yaml:"StoreFile" env:"STORE_FILE"`
+	Restore       bool          `yaml:"Restore" env:"RESTORE"`
 }
 
 func LoadServerConfig() *ServerConfig {
 	//default config
 	cfg := &ServerConfig{
 		ServerAddress: "127.0.0.1:8080",
+		StoreInterval: time.Duration(300 * time.Second),
+		StoreFile:     "/tmp/devops-metrics-db.json",
+		Restore:       true,
 	}
 	//yaml config
 	yfile, err := ioutil.ReadFile("server_config.yaml")
