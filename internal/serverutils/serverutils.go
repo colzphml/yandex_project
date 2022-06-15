@@ -1,4 +1,4 @@
-package utils_server
+package serverutils
 
 import (
 	"flag"

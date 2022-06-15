@@ -10,13 +10,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/colzphml/yandex_project/internal/agentutils"
 	"github.com/colzphml/yandex_project/internal/metrics"
-	"github.com/colzphml/yandex_project/internal/utils_agent"
 )
 
 func main() {
 	//read config file
-	cfg := utils_agent.LoadAgentConfig()
+	cfg := agentutils.LoadAgentConfig()
 	//variables for send data
 	var runtimeState runtime.MemStats
 	//slice or map??? append = create new slice, add new element to map it is better than append??

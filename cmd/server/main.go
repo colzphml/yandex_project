@@ -10,13 +10,13 @@ import (
 	"time"
 
 	"github.com/colzphml/yandex_project/internal/handlers"
+	"github.com/colzphml/yandex_project/internal/serverutils"
 	"github.com/colzphml/yandex_project/internal/storage"
-	"github.com/colzphml/yandex_project/internal/utils_server"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
 )
 
-func HTTPServer(cfg *utils_server.ServerConfig, repo *storage.MetricRepo, repoJSON *storage.MetricRepo) *http.Server {
+func HTTPServer(cfg *serverutils.ServerConfig, repo *storage.MetricRepo, repoJSON *storage.MetricRepo) *http.Server {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -40,7 +40,7 @@ func HTTPServer(cfg *utils_server.ServerConfig, repo *storage.MetricRepo, repoJS
 }
 
 func main() {
-	cfg := utils_server.LoadServerConfig()
+	cfg := serverutils.LoadServerConfig()
 	repo, err := storage.NewMetricRepo(cfg)
 	if err != nil {
 		log.Fatal(err.Error())
