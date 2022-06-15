@@ -66,6 +66,7 @@ func main() {
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer func() {
 					repoJSON.StoreMetric(cfg)
+					log.Println("metrics stored")
 					tickerSave.Stop()
 					cancel()
 				}()

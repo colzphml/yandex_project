@@ -39,7 +39,7 @@ func (cfg *AgentConfig) envRead() {
 }
 
 func (cfg *AgentConfig) flagsRead() {
-	flag.StringVar(&cfg.ServerAddress, "a", "127.0.0.1", "server address like <server>:<port>")
+	flag.StringVar(&cfg.ServerAddress, "a", "127.0.0.1:8080", "server address like <server>:<port>")
 	flag.DurationVar(&cfg.ReportInterval, "r", 10*time.Second, "duration for send metrics to server, fore example 100s")
 	flag.DurationVar(&cfg.PollInterval, "p", 2*time.Second, "duration for collect metrics to server, for example 20s")
 	flag.Parse()
