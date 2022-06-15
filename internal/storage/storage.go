@@ -8,7 +8,7 @@ import (
 	"sort"
 
 	"github.com/colzphml/yandex_project/internal/metrics"
-	"github.com/colzphml/yandex_project/internal/utils"
+	"github.com/colzphml/yandex_project/internal/utils_server"
 )
 
 var (
@@ -19,14 +19,14 @@ type Repositorier interface {
 	SaveMetric(metric metrics.Metrics) error
 	ListMetrics() []string
 	GetValue(metricName string) (metrics.Metrics, error)
-	StoreMetric(cfg *utils.ServerConfig) error
+	StoreMetric(cfg *utils_server.ServerConfig) error
 }
 
 type MetricRepo struct {
 	DB map[string]metrics.Metrics
 }
 
-func NewMetricRepo(cfg *utils.ServerConfig) (*MetricRepo, error) {
+func NewMetricRepo(cfg *utils_server.ServerConfig) (*MetricRepo, error) {
 	repo := &MetricRepo{
 		DB: make(map[string]metrics.Metrics),
 	}
@@ -52,7 +52,7 @@ func NewMetricRepo(cfg *utils.ServerConfig) (*MetricRepo, error) {
 	}
 }
 
-func (m *MetricRepo) StoreMetric(cfg *utils.ServerConfig) error {
+func (m *MetricRepo) StoreMetric(cfg *utils_server.ServerConfig) error {
 	if cfg.StoreFile != "" {
 		file, err := os.OpenFile(cfg.StoreFile, os.O_RDWR|os.O_CREATE, 0777)
 		if err != nil {

@@ -11,12 +11,12 @@ import (
 	"time"
 
 	"github.com/colzphml/yandex_project/internal/metrics"
-	"github.com/colzphml/yandex_project/internal/utils"
+	"github.com/colzphml/yandex_project/internal/utils_agent"
 )
 
 func main() {
 	//read config file
-	cfg := utils.LoadAgentConfig()
+	cfg := utils_agent.LoadAgentConfig()
 	//variables for send data
 	var runtimeState runtime.MemStats
 	//slice or map??? append = create new slice, add new element to map it is better than append??
@@ -45,6 +45,8 @@ Loop:
 			metrics.SendMetrics(cfg, metricsStore, client)
 			metrics.SendJSONMetrics(cfg, metricsStore, client)
 		case <-sigChan:
+			tickerPoll.Stop()
+			tickerReport.Stop()
 			log.Println("close program")
 			break Loop
 		}

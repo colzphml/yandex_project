@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/colzphml/yandex_project/internal/utils"
+	"github.com/colzphml/yandex_project/internal/utils_agent"
 )
 
 type Metrics struct {
@@ -75,7 +75,7 @@ func GetRuntimeMetric(m *runtime.MemStats, fieldName string, fieldType string) (
 	}
 }
 
-func CollectMetrics(cfg *utils.AgentConfig, runtime *runtime.MemStats, inc int64) map[string]Metrics {
+func CollectMetrics(cfg *utils_agent.AgentConfig, runtime *runtime.MemStats, inc int64) map[string]Metrics {
 	metricsDescr := cfg.Metrics
 	metricsStore := make(map[string]Metrics)
 	for k, v := range metricsDescr {
@@ -95,12 +95,12 @@ func CollectMetrics(cfg *utils.AgentConfig, runtime *runtime.MemStats, inc int64
 	return metricsStore
 }
 
-func SendMetrics(cfg *utils.AgentConfig, input map[string]Metrics, client *http.Client) {
+func SendMetrics(cfg *utils_agent.AgentConfig, input map[string]Metrics, client *http.Client) {
 	var urlPrefix, urlPart string
 	urlPrefix = "http://" + cfg.ServerAddress
 	for k, v := range input {
 		urlPart = "/update/" + v.MType + "/" + k + "/" + v.ValueString()
-		err := utils.HTTPSend(client, urlPrefix+urlPart)
+		err := utils_agent.HTTPSend(client, urlPrefix+urlPart)
 		if err != nil {
 			log.Println(err.Error())
 			continue
@@ -108,7 +108,7 @@ func SendMetrics(cfg *utils.AgentConfig, input map[string]Metrics, client *http.
 	}
 }
 
-func SendJSONMetrics(cfg *utils.AgentConfig, input map[string]Metrics, client *http.Client) {
+func SendJSONMetrics(cfg *utils_agent.AgentConfig, input map[string]Metrics, client *http.Client) {
 	urlPrefix := "http://" + cfg.ServerAddress + "/update/"
 	for _, v := range input {
 		postBody, err := json.Marshal(v)
@@ -116,7 +116,7 @@ func SendJSONMetrics(cfg *utils.AgentConfig, input map[string]Metrics, client *h
 			log.Println(err.Error())
 			continue
 		}
-		err = utils.HTTPSendMetric(client, urlPrefix, postBody)
+		err = utils_agent.HTTPSendJSON(client, urlPrefix, postBody)
 		if err != nil {
 			log.Println(err.Error())
 			continue

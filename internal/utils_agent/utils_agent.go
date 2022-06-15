@@ -1,7 +1,8 @@
-package utils
+package utils_agent
 
 import (
 	"bytes"
+	"flag"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -16,6 +17,32 @@ type AgentConfig struct {
 	PollInterval   time.Duration     `yaml:"PollInterval" env:"POLL_INTERVAL"`
 	ReportInterval time.Duration     `yaml:"ReportInterval" env:"REPORT_INTERVAL"`
 	Metrics        map[string]string `yaml:"Metrics"`
+}
+
+func (cfg *AgentConfig) yamlRead(file string) {
+	yfile, err := ioutil.ReadFile(file)
+	if err != nil {
+		log.Println(err.Error())
+	} else {
+		err = yaml.Unmarshal(yfile, &cfg)
+		if err != nil {
+			log.Println(err.Error())
+		}
+	}
+}
+
+func (cfg *AgentConfig) envRead() {
+	err := env.Parse(cfg)
+	if err != nil {
+		log.Println(err.Error())
+	}
+}
+
+func (cfg *AgentConfig) flagsRead() {
+	flag.StringVar(&cfg.ServerAddress, "a", "127.0.0.1", "server address like <server>:<port>")
+	flag.DurationVar(&cfg.ReportInterval, "r", 10*time.Second, "duration for send metrics to server, fore example 100s")
+	flag.DurationVar(&cfg.PollInterval, "p", 2*time.Second, "duration for collect metrics to server, for example 20s")
+	flag.Parse()
 }
 
 func LoadAgentConfig() *AgentConfig {
@@ -55,53 +82,11 @@ func LoadAgentConfig() *AgentConfig {
 		},
 	}
 	//yaml config
-	yfile, err := ioutil.ReadFile("agent_config.yaml")
-	if err != nil {
-		log.Println(err.Error())
-	} else {
-		err = yaml.Unmarshal(yfile, &cfg)
-		if err != nil {
-			log.Println(err.Error())
-		}
-	}
+	cfg.yamlRead("agent_config.yaml")
+	//flags config
+	cfg.flagsRead()
 	//env config
-	err = env.Parse(cfg)
-	if err != nil {
-		log.Println(err.Error())
-	}
-	return cfg
-}
-
-type ServerConfig struct {
-	ServerAddress string        `yaml:"ServerAddress" env:"ADDRESS"`
-	StoreInterval time.Duration `yaml:"StoreInterval" env:"STORE_INTERVAL"`
-	StoreFile     string        `yaml:"StoreFile" env:"STORE_FILE"`
-	Restore       bool          `yaml:"Restore" env:"RESTORE"`
-}
-
-func LoadServerConfig() *ServerConfig {
-	//default config
-	cfg := &ServerConfig{
-		ServerAddress: "127.0.0.1:8080",
-		StoreInterval: time.Duration(300 * time.Second),
-		StoreFile:     "/tmp/devops-metrics-db.json",
-		Restore:       true,
-	}
-	//yaml config
-	yfile, err := ioutil.ReadFile("server_config.yaml")
-	if err != nil {
-		log.Println(err.Error())
-	} else {
-		err = yaml.Unmarshal(yfile, &cfg)
-		if err != nil {
-			log.Println(err.Error())
-		}
-	}
-	//env config
-	err = env.Parse(cfg)
-	if err != nil {
-		log.Println(err.Error())
-	}
+	cfg.envRead()
 	return cfg
 }
 
@@ -122,7 +107,7 @@ func HTTPSend(client *http.Client, url string) error {
 	return nil
 }
 
-func HTTPSendMetric(client *http.Client, url string, postBody []byte) error {
+func HTTPSendJSON(client *http.Client, url string, postBody []byte) error {
 	body := bytes.NewBuffer(postBody)
 	request, err := http.NewRequest(http.MethodPost, url, body)
 	if err != nil {

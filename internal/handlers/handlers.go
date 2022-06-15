@@ -5,10 +5,11 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/colzphml/yandex_project/internal/metrics"
 	"github.com/colzphml/yandex_project/internal/storage"
-	"github.com/colzphml/yandex_project/internal/utils"
+	"github.com/colzphml/yandex_project/internal/utils_server"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -41,7 +42,7 @@ func SaveHandler(repo storage.Repositorier) http.HandlerFunc {
 	}
 }
 
-func SaveJSONHandler(repo storage.Repositorier) http.HandlerFunc {
+func SaveJSONHandler(repo storage.Repositorier, cfg *utils_server.ServerConfig) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		var m metrics.Metrics
 		if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
@@ -50,8 +51,15 @@ func SaveJSONHandler(repo storage.Repositorier) http.HandlerFunc {
 		}
 		err := repo.SaveMetric(m)
 		if err != nil {
-			http.Error(rw, "can't save metric: "+r.URL.Path, http.StatusBadRequest)
+			http.Error(rw, "can't save metric: "+m.ID, http.StatusBadRequest)
 			return
+		}
+		if cfg.StoreInterval == 0*time.Second {
+			err = repo.StoreMetric(cfg)
+			if err != nil {
+				http.Error(rw, "can't store metric: "+m.ID, http.StatusInternalServerError)
+				return
+			}
 		}
 		rw.Header().Set("Content-Type", "text/plain")
 		rw.WriteHeader(http.StatusOK)
@@ -59,7 +67,7 @@ func SaveJSONHandler(repo storage.Repositorier) http.HandlerFunc {
 	}
 }
 
-func ListMetricsHandler(repo storage.Repositorier, cfg *utils.ServerConfig) http.HandlerFunc {
+func ListMetricsHandler(repo storage.Repositorier, cfg *utils_server.ServerConfig) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		metricList := repo.ListMetrics()
 		_, err := io.WriteString(rw, strings.Join(metricList, "\n"))
