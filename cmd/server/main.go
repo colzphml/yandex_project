@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/colzphml/yandex_project/internal/handlers"
+	mdw "github.com/colzphml/yandex_project/internal/middleware"
 	"github.com/colzphml/yandex_project/internal/serverutils"
 	"github.com/colzphml/yandex_project/internal/storage"
 	"github.com/go-chi/chi/middleware"
@@ -18,6 +19,7 @@ import (
 
 func HTTPServer(cfg *serverutils.ServerConfig, repo *storage.MetricRepo, repoJSON *storage.MetricRepo) *http.Server {
 	r := chi.NewRouter()
+	r.Use(mdw.GzipHandle)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
