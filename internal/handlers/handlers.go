@@ -83,7 +83,9 @@ func SaveJSONHandler(repo storage.Repositorier, cfg *serverutils.ServerConfig) h
 func ListMetricsHandler(repo storage.Repositorier, cfg *serverutils.ServerConfig) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		metricList := repo.ListMetrics()
-		_, err := io.WriteString(rw, strings.Join(metricList, "\n"))
+		rw.Header().Set("Content-Type", "text/html")
+		rw.WriteHeader(http.StatusOK)
+		_, err := io.WriteString(rw, strings.Join(metricList, "<br>"))
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
