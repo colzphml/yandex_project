@@ -43,7 +43,7 @@ func (cfg *ServerConfig) envRead() {
 func (cfg *ServerConfig) flagsRead() {
 	flag.StringVar(&cfg.ServerAddress, "a", "127.0.0.1:8080", "server address like <server>:<port>")
 	flag.StringVar(&cfg.StoreFile, "f", "./tmp/devops-metrics-db.json", "file for store metrics, example /root/myfile.json")
-	flag.BoolVar(&cfg.Restore, "r", true, "true/false for restore metrics from disk after restart") //работает только если -r=false, если -r false нет. Почему?
+	flag.BoolVar(&cfg.Restore, "r", true, "true/false for restore metrics from disk after restart")
 	flag.DurationVar(&cfg.StoreInterval, "i", 300*time.Second, "time duration for store metrics, for example 20s")
 	flag.Parse()
 }

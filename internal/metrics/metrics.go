@@ -86,7 +86,6 @@ func CollectMetrics(cfg *agentutils.AgentConfig, runtime *runtime.MemStats, inc 
 		}
 		metricsStore[k] = value
 	}
-	//int64Value := inc
 	incMetrics := Metrics{ID: "PollCount", MType: "counter", Delta: &inc}
 	metricsStore[incMetrics.ID] = incMetrics
 	randomValue := rand.Float64()
