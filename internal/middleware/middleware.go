@@ -20,6 +20,7 @@ func GzipHandle(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
 			next.ServeHTTP(rw, r)
+			return
 		}
 		gz, err := gzip.NewWriterLevel(rw, gzip.BestSpeed)
 		if err != nil {
