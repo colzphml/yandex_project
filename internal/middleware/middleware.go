@@ -22,6 +22,8 @@ func GzipHandle(next http.Handler) http.Handler {
 			next.ServeHTTP(rw, r)
 			return
 		}
+		//в теории говорили что использовать постоянно NewWriterLevel плохо, лучше Reset.
+		//Не совсем понимаю как это реализовать...
 		gz, err := gzip.NewWriterLevel(rw, gzip.BestSpeed)
 		if err != nil {
 			io.WriteString(rw, err.Error())

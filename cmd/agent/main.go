@@ -17,9 +17,8 @@ import (
 func main() {
 	//read config file
 	cfg := agentutils.LoadAgentConfig()
-	//variables for send data
+	//variables for collected data
 	var runtimeState runtime.MemStats
-	//slice or map??? append = create new slice, add new element to map it is better than append??
 	metricsStore := make(map[string]metrics.Metrics)
 	//for close programm by signal
 	sigChan := make(chan os.Signal, 1)
@@ -28,12 +27,11 @@ func main() {
 	var pollCouter int64
 	//for additional metric RandomValue
 	rand.Seed(time.Now().UnixNano())
-	//can we get collision every 5th tickerPoll and every tickerReport??? Maybe send in other goroutine??
+	//schedule ticker
 	tickerPoll := time.NewTicker(cfg.PollInterval)
 	tickerReport := time.NewTicker(cfg.ReportInterval)
 	//client for send
 	client := &http.Client{}
-	//maybe there is a better way
 Loop:
 	for {
 		select {
@@ -42,7 +40,9 @@ Loop:
 			metricsStore = metrics.CollectMetrics(cfg, &runtimeState, pollCouter)
 			pollCouter++
 		case <-tickerReport.C:
+			//send by url
 			metrics.SendMetrics(cfg, metricsStore, client)
+			//send by json
 			metrics.SendJSONMetrics(cfg, metricsStore, client)
 		case <-sigChan:
 			tickerPoll.Stop()

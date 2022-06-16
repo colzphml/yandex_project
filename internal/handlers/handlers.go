@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"compress/gzip"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -45,24 +44,17 @@ func SaveHandler(repo storage.Repositorier) http.HandlerFunc {
 
 func SaveJSONHandler(repo storage.Repositorier, cfg *serverutils.ServerConfig) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
-		var body io.Reader
-		if r.Header.Get("Content-Encoding") == "gzip" {
-			gz, err := gzip.NewReader(r.Body)
-			if err != nil {
-				http.Error(rw, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			defer gz.Close()
-			body = gz
-		} else {
-			body = r.Body
+		body, err := serverutils.CheckGZIP(r)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		var m metrics.Metrics
 		if err := json.NewDecoder(body).Decode(&m); err != nil {
 			http.Error(rw, "can't decode metric: "+r.URL.Path, http.StatusBadRequest)
 			return
 		}
-		err := repo.SaveMetric(m)
+		err = repo.SaveMetric(m)
 		if err != nil {
 			http.Error(rw, "can't save metric: "+m.ID, http.StatusBadRequest)
 			return
@@ -114,17 +106,10 @@ func GetValueHandler(repo storage.Repositorier) http.HandlerFunc {
 
 func GetJSONValueHandler(repo storage.Repositorier) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
-		var body io.Reader
-		if r.Header.Get("Content-Encoding") == "gzip" {
-			gz, err := gzip.NewReader(r.Body)
-			if err != nil {
-				http.Error(rw, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			defer gz.Close()
-			body = gz
-		} else {
-			body = r.Body
+		body, err := serverutils.CheckGZIP(r)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		var m metrics.Metrics
 		if err := json.NewDecoder(body).Decode(&m); err != nil {

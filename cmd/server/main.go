@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/colzphml/yandex_project/internal/handlers"
+	//"middleware" используется в 2 пакетах, потому для собственного алиас
 	mdw "github.com/colzphml/yandex_project/internal/middleware"
 	"github.com/colzphml/yandex_project/internal/serverutils"
 	"github.com/colzphml/yandex_project/internal/storage"
@@ -17,6 +18,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+//вынес в отдельную функцию создание сервера
 func HTTPServer(cfg *serverutils.ServerConfig, repo *storage.MetricRepo, repoJSON *storage.MetricRepo) *http.Server {
 	r := chi.NewRouter()
 	r.Use(mdw.GzipHandle)
@@ -33,6 +35,7 @@ func HTTPServer(cfg *serverutils.ServerConfig, repo *storage.MetricRepo, repoJSO
 		Addr:    cfg.ServerAddress,
 		Handler: r,
 	}
+	//запуск в отдельной го рутине, что бы можно было повесить таймер на сохранение. Есть ли еще другие варианты реализации сохранения в storage по таймеру?
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal(err)
@@ -43,6 +46,7 @@ func HTTPServer(cfg *serverutils.ServerConfig, repo *storage.MetricRepo, repoJSO
 
 func main() {
 	cfg := serverutils.LoadServerConfig()
+	//сделал отдельный сторадж для запросов по url и json
 	repo, err := storage.NewMetricRepo(cfg)
 	if err != nil {
 		log.Fatal(err.Error())
@@ -51,8 +55,15 @@ func main() {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
+	//для "штатного" завершения сервера
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+	/*
+		Мне не очень нравится следующий кусок кода, но он нужен, если таймер сохранения равен нулю.
+		Можно ли использовать такую конструкцию для "неработающего тикера", который никогда не сработает, но не надо будет дублировать код?
+		var ticker *time.Ticker
+		ticker = &time.Ticker{}
+	*/
 	if cfg.StoreInterval != 0*time.Second {
 		tickerSave := time.NewTicker(cfg.StoreInterval)
 		srv := HTTPServer(cfg, repo, repoJSON)
@@ -65,6 +76,7 @@ func main() {
 					log.Println(err.Error())
 				}
 			case <-sigChan:
+				//ура, контекст пригодился!
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer func() {
 					repoJSON.StoreMetric(cfg)

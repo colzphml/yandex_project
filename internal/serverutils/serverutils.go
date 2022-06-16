@@ -1,9 +1,12 @@
 package serverutils
 
 import (
+	"compress/gzip"
 	"flag"
+	"io"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/caarlos0/env"
@@ -36,6 +39,7 @@ func (cfg *ServerConfig) envRead() {
 	}
 }
 
+//можно ли задавать "обязательные/критичные для сервиса" флаги?
 func (cfg *ServerConfig) flagsRead() {
 	flag.StringVar(&cfg.ServerAddress, "a", "127.0.0.1:8080", "server address like <server>:<port>")
 	flag.StringVar(&cfg.StoreFile, "f", "./tmp/devops-metrics-db.json", "file for store metrics, example /root/myfile.json")
@@ -59,4 +63,19 @@ func LoadServerConfig() *ServerConfig {
 	//env config
 	cfg.envRead()
 	return cfg
+}
+
+func CheckGZIP(r *http.Request) (io.Reader, error) {
+	var result io.Reader
+	if r.Header.Get("Content-Encoding") == "gzip" {
+		gz, err := gzip.NewReader(r.Body)
+		if err != nil {
+			return nil, err
+		}
+		defer gz.Close()
+		result = gz
+	} else {
+		result = r.Body
+	}
+	return result, nil
 }

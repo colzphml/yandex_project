@@ -38,6 +38,8 @@ func (cfg *AgentConfig) envRead() {
 	}
 }
 
+//можно ли делать флаги без дефолтного значения, например если пустой, то использовать то, что уже записано?
+//на вскидку можно сделать через flag.Func, но это "усложнит код"
 func (cfg *AgentConfig) flagsRead() {
 	flag.StringVar(&cfg.ServerAddress, "a", "127.0.0.1:8080", "server address like <server>:<port>")
 	flag.DurationVar(&cfg.ReportInterval, "r", 10*time.Second, "duration for send metrics to server, fore example 100s")
