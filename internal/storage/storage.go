@@ -1,45 +1,86 @@
 package storage
 
 import (
+	"encoding/json"
 	"errors"
+	"io"
+	"os"
 	"sort"
 
 	"github.com/colzphml/yandex_project/internal/metrics"
+	"github.com/colzphml/yandex_project/internal/serverutils"
 )
 
-type Repositories interface {
-	SaveMetric(metricName string, MetricValue metrics.MetricValue) error
+var (
+	ErrNoFileDeclared = errors.New("RESTORE == true, but STORE_FILE is empty")
+)
+
+type Repositorier interface {
+	SaveMetric(metric metrics.Metrics) error
 	ListMetrics() []string
-	GetValue(metricName string) (metrics.MetricValue, error)
+	GetValue(metricName string) (metrics.Metrics, error)
+	StoreMetric(cfg *serverutils.ServerConfig) error
 }
 
 type MetricRepo struct {
-	db map[string]metrics.MetricValue
+	DB map[string]metrics.Metrics
 }
 
-func NewMetricRepo() *MetricRepo {
-	return &MetricRepo{
-		db: make(map[string]metrics.MetricValue),
+func NewMetricRepo(cfg *serverutils.ServerConfig) (*MetricRepo, error) {
+	repo := &MetricRepo{
+		DB: make(map[string]metrics.Metrics),
+	}
+	switch {
+	case cfg.Restore && cfg.StoreFile != "":
+		file, err := os.OpenFile(cfg.StoreFile, os.O_RDONLY|os.O_CREATE, 0777)
+		if err != nil {
+			return nil, err
+		}
+		defer file.Close()
+		err = json.NewDecoder(file).Decode(repo)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return repo, nil
+			}
+			return nil, err
+		}
+		return repo, nil
+	case cfg.Restore && cfg.StoreFile == "":
+		return nil, ErrNoFileDeclared
+	default:
+		return repo, nil
 	}
 }
 
-func (m *MetricRepo) SaveMetric(metricName string, mValue metrics.MetricValue) error {
-	if v, ok := m.db[metricName]; ok {
-		newValue, err := metrics.NewValue(v, mValue)
+func (m *MetricRepo) StoreMetric(cfg *serverutils.ServerConfig) error {
+	if cfg.StoreFile != "" {
+		file, err := os.OpenFile(cfg.StoreFile, os.O_RDWR|os.O_CREATE, 0777)
 		if err != nil {
 			return err
 		}
-		m.db[metricName] = newValue
+		defer file.Close()
+		return json.NewEncoder(file).Encode(m)
+	}
+	return nil
+}
+
+func (m *MetricRepo) SaveMetric(metric metrics.Metrics) error {
+	if v, ok := m.DB[metric.ID]; ok {
+		newValue, err := metrics.NewValue(v, metric)
+		if err != nil {
+			return err
+		}
+		m.DB[metric.ID] = newValue
 	} else {
-		m.db[metricName] = mValue
+		m.DB[metric.ID] = metric
 	}
 	return nil
 }
 
 func (m *MetricRepo) ListMetrics() []string {
 	var list []string
-	for k, v := range m.db {
-		list = append(list, k+":"+v.String())
+	for k, v := range m.DB {
+		list = append(list, k+":"+v.ValueString())
 	}
 	sort.Slice(list, func(i, j int) bool {
 		return list[i] < list[j]
@@ -47,10 +88,10 @@ func (m *MetricRepo) ListMetrics() []string {
 	return list
 }
 
-func (m *MetricRepo) GetValue(metricName string) (metrics.MetricValue, error) {
-	v, ok := m.db[metricName]
+func (m *MetricRepo) GetValue(metricName string) (metrics.Metrics, error) {
+	v, ok := m.DB[metricName]
 	if !ok {
-		return metrics.Counter(-1), errors.New("metric not stored")
+		return metrics.Metrics{}, errors.New("metric not stored")
 	}
 	return v, nil
 }

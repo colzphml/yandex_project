@@ -1,5 +1,4 @@
-ServerAdress: "127.0.0.1"
-ServerPort: 8080
+ServerAddress: "127.0.0.1:8080"
 PollInterval: "2s"
 ReportInterval: "10s"
 Metrics:
