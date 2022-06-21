@@ -103,9 +103,6 @@ func HTTPSend(client *http.Client, url string) error {
 		return err
 	}
 	defer response.Body.Close()
-	if response.StatusCode != 200 {
-		return err
-	}
 	return nil
 }
 
