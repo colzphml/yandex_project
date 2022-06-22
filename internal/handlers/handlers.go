@@ -54,6 +54,15 @@ func SaveJSONHandler(repo storage.Repositorier, cfg *serverutils.ServerConfig) h
 			http.Error(rw, "can't decode metric: "+r.URL.Path, http.StatusBadRequest)
 			return
 		}
+		compareHash, err := m.CompareHash(cfg.Key)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if !compareHash {
+			http.Error(rw, "signature is wrong", http.StatusBadRequest)
+			return
+		}
 		err = repo.SaveMetric(m)
 		if err != nil {
 			http.Error(rw, "can't save metric: "+m.ID, http.StatusBadRequest)
@@ -104,7 +113,7 @@ func GetValueHandler(repo storage.Repositorier) http.HandlerFunc {
 	}
 }
 
-func GetJSONValueHandler(repo storage.Repositorier) http.HandlerFunc {
+func GetJSONValueHandler(repo storage.Repositorier, cfg *serverutils.ServerConfig) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		body, err := serverutils.CheckGZIP(r)
 		if err != nil {
@@ -123,6 +132,11 @@ func GetJSONValueHandler(repo storage.Repositorier) http.HandlerFunc {
 		}
 		if metricValue.MType != m.MType {
 			http.Error(rw, "this metric have another type: "+m.ID, http.StatusNotFound)
+			return
+		}
+		err = metricValue.FillHash(cfg.Key)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		rw.Header().Set("Content-Type", "application/json")

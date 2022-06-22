@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/caarlos0/env"
@@ -18,6 +19,7 @@ type ServerConfig struct {
 	StoreInterval time.Duration `yaml:"StoreInterval" env:"STORE_INTERVAL"`
 	StoreFile     string        `yaml:"StoreFile" env:"STORE_FILE"`
 	Restore       bool          `yaml:"Restore" env:"RESTORE"`
+	Key           string        `yaml:"Key" env:"KEY"`
 }
 
 func (cfg *ServerConfig) yamlRead(file string) {
@@ -41,10 +43,44 @@ func (cfg *ServerConfig) envRead() {
 
 //можно ли задавать "обязательные/критичные для сервиса" флаги?
 func (cfg *ServerConfig) flagsRead() {
-	flag.StringVar(&cfg.ServerAddress, "a", "127.0.0.1:8080", "server address like <server>:<port>")
-	flag.StringVar(&cfg.StoreFile, "f", "./tmp/devops-metrics-db.json", "file for store metrics, example /root/myfile.json")
-	flag.BoolVar(&cfg.Restore, "r", true, "true/false for restore metrics from disk after restart")
-	flag.DurationVar(&cfg.StoreInterval, "i", 300*time.Second, "time duration for store metrics, for example 20s")
+	flag.Func("a", "server address like <server>:<port>, example: -a \"127.0.0.1:8080\"", func(flagValue string) error {
+		if flagValue != "" {
+			cfg.ServerAddress = flagValue
+		}
+		return nil
+	})
+	flag.Func("f", "file for store metrics, example: -f \"/root/myfile.json\"", func(flagValue string) error {
+		if flagValue != "" {
+			cfg.StoreFile = flagValue
+		}
+		return nil
+	})
+	flag.Func("r", "true/false for restore metrics from disk after restart, example: -r=true", func(flagValue string) error {
+		if flagValue != "" {
+			value, err := strconv.ParseBool(flagValue)
+			if err != nil {
+				return err
+			}
+			cfg.Restore = value
+		}
+		return nil
+	})
+	flag.Func("i", "time duration for store metrics, example: -r \"100s\"", func(flagValue string) error {
+		if flagValue != "" {
+			interval, err := time.ParseDuration(flagValue)
+			if err != nil {
+				return err
+			}
+			cfg.StoreInterval = interval
+		}
+		return nil
+	})
+	flag.Func("k", "key for data hash, example: -k \"sample key\"", func(flagValue string) error {
+		if flagValue != "" {
+			cfg.Key = flagValue
+		}
+		return nil
+	})
 	flag.Parse()
 }
 
@@ -55,6 +91,7 @@ func LoadServerConfig() *ServerConfig {
 		StoreInterval: time.Duration(300 * time.Second),
 		StoreFile:     "./tmp/devops-metrics-db.json",
 		Restore:       true,
+		Key:           "",
 	}
 	//yaml config
 	cfg.yamlRead("server_config.yaml")

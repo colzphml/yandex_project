@@ -1,8 +1,13 @@
 package metrics
 
 import (
+	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
@@ -19,9 +24,10 @@ type Metrics struct {
 	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
 	Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
 	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
+	Hash  string   `json:"hash,omitempty"`  // значение хеш-функции
 }
 
-func (m Metrics) ValueString() string {
+func (m *Metrics) ValueString() string {
 	switch m.MType {
 	case "gauge":
 		return strconv.FormatFloat(float64(*m.Value), 'g', -1, 64)
@@ -30,6 +36,50 @@ func (m Metrics) ValueString() string {
 	default:
 		return ""
 	}
+}
+
+func (m *Metrics) CalculateHash(key string) ([]byte, error) {
+	var src string
+	switch m.MType {
+	case "gauge":
+		src = fmt.Sprintf("%s:gauge:%f", m.ID, *m.Value)
+	case "counter":
+		src = fmt.Sprintf("%s:counter:%d", m.ID, *m.Delta)
+	default:
+		return nil, ErrUndefinedType
+	}
+	hash, err := signData(src, key)
+	if err != nil {
+		log.Println(err.Error())
+		return nil, err
+	}
+	return hash, nil
+}
+
+func (m *Metrics) FillHash(key string) error {
+	if key != "" {
+		hash, err := m.CalculateHash(key)
+		if err != nil {
+			return err
+		}
+		m.Hash = hex.EncodeToString(hash)
+	}
+	return nil
+}
+
+func (m *Metrics) CompareHash(key string) (bool, error) {
+	if key != "" {
+		hash, err := m.CalculateHash(key)
+		if err != nil {
+			return false, err
+		}
+		data, err := hex.DecodeString(m.Hash)
+		if err != nil {
+			return false, err
+		}
+		return bytes.Equal(hash, data), nil
+	}
+	return true, nil
 }
 
 var (
@@ -110,6 +160,7 @@ func SendMetrics(cfg *agentutils.AgentConfig, input map[string]Metrics, client *
 func SendJSONMetrics(cfg *agentutils.AgentConfig, input map[string]Metrics, client *http.Client) {
 	urlPrefix := "http://" + cfg.ServerAddress + "/update/"
 	for _, v := range input {
+		v.FillHash(cfg.Key)
 		postBody, err := json.Marshal(v)
 		if err != nil {
 			log.Println(err.Error())
@@ -166,4 +217,13 @@ func NewValue(oldValue Metrics, newValue Metrics) (Metrics, error) {
 	default:
 		return Metrics{}, ErrUndefinedType
 	}
+}
+
+func signData(src, key string) ([]byte, error) {
+	h := hmac.New(sha256.New, []byte(key))
+	_, err := h.Write([]byte(src))
+	if err != nil {
+		return nil, err
+	}
+	return h.Sum(nil), nil
 }

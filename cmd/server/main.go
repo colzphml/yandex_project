@@ -29,7 +29,7 @@ func HTTPServer(cfg *serverutils.ServerConfig, repo *storage.MetricRepo, repoJSO
 	r.Post("/update/{metric_type}/{metric_name}/{metric_value}", handlers.SaveHandler(repo))
 	r.Post("/update/", handlers.SaveJSONHandler(repoJSON, cfg))
 	r.Get("/value/{metric_type}/{metric_name}", handlers.GetValueHandler(repo))
-	r.Post("/value/", handlers.GetJSONValueHandler(repoJSON))
+	r.Post("/value/", handlers.GetJSONValueHandler(repoJSON, cfg))
 	r.Get("/", handlers.ListMetricsHandler(repo, cfg))
 	srv := &http.Server{
 		Addr:    cfg.ServerAddress,
