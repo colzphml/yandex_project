@@ -23,7 +23,7 @@ func NewMetricRepo(cfg *serverutils.ServerConfig) (*MetricRepo, error) {
 	repo := &MetricRepo{
 		DB: make(map[string]metrics.Metrics),
 	}
-	dbpool, err := pgxpool.Connect(context.Background(), cfg.DbDSN)
+	dbpool, err := pgxpool.Connect(context.Background(), cfg.DBDSN)
 	if err != nil {
 		return nil, err
 	}

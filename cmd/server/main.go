@@ -46,6 +46,7 @@ func HTTPServer(cfg *serverutils.ServerConfig, repo storage.Repositorier, repoJS
 
 func main() {
 	cfg := serverutils.LoadServerConfig()
+	log.Println(cfg)
 	//сделал отдельный сторадж для запросов по url и json
 	repo, err := storage.CreateRepo(cfg)
 	if err != nil {
