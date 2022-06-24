@@ -19,7 +19,7 @@ import (
 )
 
 //вынес в отдельную функцию создание сервера
-func HTTPServer(cfg *serverutils.ServerConfig, repo *storage.MetricRepo, repoJSON *storage.MetricRepo) *http.Server {
+func HTTPServer(cfg *serverutils.ServerConfig, repo storage.Repositorier, repoJSON storage.Repositorier) *http.Server {
 	r := chi.NewRouter()
 	r.Use(mdw.GzipHandle)
 	r.Use(middleware.RequestID)
@@ -27,9 +27,10 @@ func HTTPServer(cfg *serverutils.ServerConfig, repo *storage.MetricRepo, repoJSO
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Post("/update/{metric_type}/{metric_name}/{metric_value}", handlers.SaveHandler(repo))
-	r.Post("/update/", handlers.SaveJSONHandler(repoJSON, cfg))
 	r.Get("/value/{metric_type}/{metric_name}", handlers.GetValueHandler(repo))
+	r.Post("/update/", handlers.SaveJSONHandler(repoJSON, cfg))
 	r.Post("/value/", handlers.GetJSONValueHandler(repoJSON, cfg))
+	r.Get("/ping", handlers.PingHandler(repoJSON, cfg))
 	r.Get("/", handlers.ListMetricsHandler(repo, cfg))
 	srv := &http.Server{
 		Addr:    cfg.ServerAddress,
@@ -46,11 +47,11 @@ func HTTPServer(cfg *serverutils.ServerConfig, repo *storage.MetricRepo, repoJSO
 func main() {
 	cfg := serverutils.LoadServerConfig()
 	//сделал отдельный сторадж для запросов по url и json
-	repo, err := storage.NewMetricRepo(cfg)
+	repo, err := storage.CreateRepo(cfg)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-	repoJSON, err := storage.NewMetricRepo(cfg)
+	repoJSON, err := storage.CreateRepo(cfg)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -74,7 +75,10 @@ Loop:
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer func() {
 				repoJSON.StoreMetric(cfg)
+				repo.StoreMetric(cfg)
 				log.Println("metrics stored")
+				repo.Close()
+				repoJSON.Close()
 				tickerSave.Stop()
 				cancel()
 			}()

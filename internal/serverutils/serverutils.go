@@ -20,6 +20,7 @@ type ServerConfig struct {
 	StoreFile     string        `yaml:"StoreFile" env:"STORE_FILE"`
 	Restore       bool          `yaml:"Restore" env:"RESTORE"`
 	Key           string        `yaml:"Key" env:"KEY"`
+	DbDSN         string        `yaml:"DbDSN" env:"DATABASE_DSN"`
 }
 
 func (cfg *ServerConfig) yamlRead(file string) {
@@ -78,6 +79,12 @@ func (cfg *ServerConfig) flagsRead() {
 	flag.Func("k", "key for data hash, example: -k \"sample key\"", func(flagValue string) error {
 		if flagValue != "" {
 			cfg.Key = flagValue
+		}
+		return nil
+	})
+	flag.Func("d", "key for database DSN, example: -d \"postgres://pi:toor@192.168.1.69:5432/yandex\"", func(flagValue string) error {
+		if flagValue != "" {
+			cfg.DbDSN = flagValue
 		}
 		return nil
 	})

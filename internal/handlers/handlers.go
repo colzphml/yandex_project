@@ -149,3 +149,16 @@ func GetJSONValueHandler(repo storage.Repositorier, cfg *serverutils.ServerConfi
 		rw.Write(js)
 	}
 }
+
+func PingHandler(repo storage.Repositorier, cfg *serverutils.ServerConfig) http.HandlerFunc {
+	return func(rw http.ResponseWriter, r *http.Request) {
+		err := repo.Ping()
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		rw.Header().Set("Content-Type", "text/plain")
+		rw.WriteHeader(http.StatusOK)
+		rw.Write([]byte("ok"))
+	}
+}
