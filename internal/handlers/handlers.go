@@ -117,6 +117,7 @@ func GetValueHandler(repo storage.Repositorier) http.HandlerFunc {
 func GetJSONValueHandler(repo storage.Repositorier, cfg *serverutils.ServerConfig) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		body, err := serverutils.CheckGZIP(r)
+		log.Println(body)
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
@@ -127,7 +128,6 @@ func GetJSONValueHandler(repo storage.Repositorier, cfg *serverutils.ServerConfi
 			return
 		}
 		metricValue, err := repo.GetValue(m.ID)
-		log.Println(metricValue)
 		if err != nil {
 			http.Error(rw, err.Error()+" "+m.ID, http.StatusNotFound)
 			return
