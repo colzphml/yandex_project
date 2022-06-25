@@ -23,7 +23,11 @@ func CreateRepo(cfg *serverutils.ServerConfig) (Repositorier, error) {
 		if err != nil {
 			return nil, err
 		}
-		return repo, nil
+		err = repo.Ping()
+		if err == nil {
+			return repo, nil
+		}
+		fallthrough
 	default:
 		repo, err := filerepo.NewMetricRepo(cfg)
 		if err != nil {

@@ -20,7 +20,7 @@ type ServerConfig struct {
 	StoreFile     string        `yaml:"StoreFile" env:"STORE_FILE"`
 	Restore       bool          `yaml:"Restore" env:"RESTORE"`
 	Key           string        `yaml:"Key" env:"KEY"`
-	DBDSN         string        `yaml:"DbDSN" env:"DATABASE_DSN"`
+	DBDSN         string        `yaml:"DBDSN" env:"DATABASE_DSN"`
 }
 
 func (cfg *ServerConfig) yamlRead(file string) {
