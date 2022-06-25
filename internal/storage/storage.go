@@ -36,6 +36,7 @@ func CreateRepo(cfg *serverutils.ServerConfig) (Repositorier, error) {
 		if err != nil {
 			return nil, err
 		}
+		log.Println("ping OK")
 		return repo, nil
 	default:
 		repo, err := filerepo.NewMetricRepo(cfg)
