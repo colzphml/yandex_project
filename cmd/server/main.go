@@ -19,7 +19,7 @@ import (
 )
 
 //вынес в отдельную функцию создание сервера
-func HTTPServer(cfg *serverutils.ServerConfig, repo storage.Repositorier, repoJSON storage.Repositorier) *http.Server {
+func HTTPServer(cfg *serverutils.ServerConfig, repo storage.Repositorier) *http.Server {
 	r := chi.NewRouter()
 	r.Use(mdw.GzipHandle)
 	r.Use(middleware.RequestID)
@@ -28,9 +28,9 @@ func HTTPServer(cfg *serverutils.ServerConfig, repo storage.Repositorier, repoJS
 	r.Use(middleware.Recoverer)
 	r.Post("/update/{metric_type}/{metric_name}/{metric_value}", handlers.SaveHandler(repo))
 	r.Get("/value/{metric_type}/{metric_name}", handlers.GetValueHandler(repo))
-	r.Post("/update/", handlers.SaveJSONHandler(repoJSON, cfg))
-	r.Post("/value/", handlers.GetJSONValueHandler(repoJSON, cfg))
-	r.Get("/ping", handlers.PingHandler(repoJSON, cfg))
+	r.Post("/update/", handlers.SaveJSONHandler(repo, cfg))
+	r.Post("/value/", handlers.GetJSONValueHandler(repo, cfg))
+	r.Get("/ping", handlers.PingHandler(repo, cfg))
 	r.Get("/", handlers.ListMetricsHandler(repo, cfg))
 	srv := &http.Server{
 		Addr:    cfg.ServerAddress,
@@ -47,12 +47,7 @@ func HTTPServer(cfg *serverutils.ServerConfig, repo storage.Repositorier, repoJS
 func main() {
 	cfg := serverutils.LoadServerConfig()
 	log.Println(cfg)
-	//сделал отдельный сторадж для запросов по url и json
 	repo, err := storage.CreateRepo(cfg)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-	repoJSON, err := storage.CreateRepo(cfg)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -63,23 +58,21 @@ func main() {
 	if cfg.StoreInterval.Seconds() != 0 {
 		tickerSave = time.NewTicker(cfg.StoreInterval)
 	}
-	srv := HTTPServer(cfg, repo, repoJSON)
+	srv := HTTPServer(cfg, repo)
 Loop:
 	for {
 		select {
 		case <-tickerSave.C:
-			err := repoJSON.StoreMetric(cfg)
+			err := repo.StoreMetric(cfg)
 			if err != nil {
 				log.Println(err.Error())
 			}
 		case <-sigChan:
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer func() {
-				repoJSON.StoreMetric(cfg)
 				repo.StoreMetric(cfg)
 				log.Println("metrics stored")
 				repo.Close()
-				repoJSON.Close()
 				tickerSave.Stop()
 				cancel()
 			}()
