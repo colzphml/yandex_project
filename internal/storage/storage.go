@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"log"
+
 	"github.com/colzphml/yandex_project/internal/metrics"
 	"github.com/colzphml/yandex_project/internal/serverutils"
 	"github.com/colzphml/yandex_project/internal/storage/dbrepo"
@@ -23,9 +25,12 @@ func CreateRepo(cfg *serverutils.ServerConfig) (Repositorier, error) {
 		repo, err := dbrepo.NewMetricRepo(cfg)
 		if err != nil {
 			repo, err = filerepo.NewMetricRepo(cfg)
+			log.Println("used file")
 			if err != nil {
 				return nil, err
 			}
+		} else {
+			log.Println("used db")
 		}
 		err = repo.Ping()
 		if err != nil {
@@ -37,6 +42,7 @@ func CreateRepo(cfg *serverutils.ServerConfig) (Repositorier, error) {
 		if err != nil {
 			return nil, err
 		}
+		log.Println("used file")
 		return repo, nil
 	}
 }
