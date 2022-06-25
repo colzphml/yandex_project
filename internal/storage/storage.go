@@ -20,9 +20,11 @@ func CreateRepo(cfg *serverutils.ServerConfig) (Repositorier, error) {
 	switch {
 	case cfg.DBDSN != "":
 		repo, err := dbrepo.NewMetricRepo(cfg)
-		if err != nil {
-			return nil, err
-		}
+		/*
+			if err != nil {
+				return nil, err
+			}
+		*/
 		err = repo.Ping()
 		if err == nil {
 			return repo, nil
