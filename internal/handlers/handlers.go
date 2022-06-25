@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -126,6 +127,7 @@ func GetJSONValueHandler(repo storage.Repositorier, cfg *serverutils.ServerConfi
 			return
 		}
 		metricValue, err := repo.GetValue(m.ID)
+		log.Println(metricValue)
 		if err != nil {
 			http.Error(rw, err.Error()+" "+m.ID, http.StatusNotFound)
 			return
