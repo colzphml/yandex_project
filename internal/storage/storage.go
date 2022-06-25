@@ -19,17 +19,19 @@ type Repositorier interface {
 func CreateRepo(cfg *serverutils.ServerConfig) (Repositorier, error) {
 	switch {
 	case cfg.DBDSN != "":
+		var repo Repositorier
 		repo, err := dbrepo.NewMetricRepo(cfg)
-		/*
+		if err != nil {
+			repo, err = filerepo.NewMetricRepo(cfg)
 			if err != nil {
 				return nil, err
 			}
-		*/
-		err = repo.Ping()
-		if err == nil {
-			return repo, nil
 		}
-		fallthrough
+		err = repo.Ping()
+		if err != nil {
+			return nil, err
+		}
+		return repo, nil
 	default:
 		repo, err := filerepo.NewMetricRepo(cfg)
 		if err != nil {
