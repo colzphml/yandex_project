@@ -109,17 +109,13 @@ func LoadServerConfig() *ServerConfig {
 	return cfg
 }
 
-func CheckGZIP(r *http.Request) (io.Reader, error) {
-	var result io.Reader
+func CheckGZIP(r *http.Request) (io.ReadCloser, error) {
 	if r.Header.Get("Content-Encoding") == "gzip" {
 		gz, err := gzip.NewReader(r.Body)
 		if err != nil {
 			return nil, err
 		}
-		defer gz.Close()
-		result = gz
-	} else {
-		result = r.Body
+		return gz, nil
 	}
-	return result, nil
+	return r.Body, nil
 }

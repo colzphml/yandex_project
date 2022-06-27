@@ -54,6 +54,7 @@ func SaveJSONHandler(repo storage.Repositorier, cfg *serverutils.ServerConfig) h
 			http.Error(rw, "can't decode metric: "+r.URL.Path, http.StatusBadRequest)
 			return
 		}
+		body.Close()
 		compareHash, err := m.CompareHash(cfg.Key)
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
@@ -125,6 +126,7 @@ func GetJSONValueHandler(repo storage.Repositorier, cfg *serverutils.ServerConfi
 			http.Error(rw, "can't decode metric: "+r.URL.Path, http.StatusBadRequest)
 			return
 		}
+		body.Close()
 		metricValue, err := repo.GetValue(m.ID)
 		if err != nil {
 			http.Error(rw, err.Error()+" "+m.ID, http.StatusNotFound)
