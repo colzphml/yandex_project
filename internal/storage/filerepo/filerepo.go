@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"os"
 	"sort"
 
@@ -68,6 +69,24 @@ func (m *MetricRepo) SaveMetric(metric metrics.Metrics) error {
 		m.DB[metric.ID] = metric
 	}
 	return nil
+}
+
+func (m *MetricRepo) SaveListMetric(metricarray []metrics.Metrics) (int, error) {
+	counter := 0
+	for _, metric := range metricarray {
+		if v, ok := m.DB[metric.ID]; ok {
+			newValue, err := metrics.NewValue(v, metric)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			m.DB[metric.ID] = newValue
+		} else {
+			m.DB[metric.ID] = metric
+		}
+		counter++
+	}
+	return counter, nil
 }
 
 func (m *MetricRepo) ListMetrics() []string {

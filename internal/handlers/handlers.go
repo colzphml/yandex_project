@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/colzphml/yandex_project/internal/metrics"
@@ -87,6 +88,49 @@ func SaveJSONHandler(repo storage.Repositorier, cfg *serverutils.ServerConfig) h
 		rw.Header().Set("Content-Type", "text/plain")
 		rw.WriteHeader(http.StatusOK)
 		rw.Write([]byte("Metric saved"))
+	}
+}
+
+func SaveJSONArrayHandler(repo storage.Repositorier, cfg *serverutils.ServerConfig) http.HandlerFunc {
+	return func(rw http.ResponseWriter, r *http.Request) {
+		body, err := serverutils.CheckGZIP(r)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		var m []metrics.Metrics
+		if err := json.NewDecoder(body).Decode(&m); err != nil {
+			http.Error(rw, "can't decode metric: "+r.URL.Path, http.StatusBadRequest)
+			return
+		}
+		body.Close()
+		for _, v := range m {
+			compareHash, err := v.CompareHash(cfg.Key)
+			if err != nil {
+				http.Error(rw, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			if !compareHash {
+				http.Error(rw, "signature is wrong", http.StatusBadRequest)
+				return
+			}
+		}
+		count, err := repo.SaveListMetric(m)
+		if err != nil {
+			log.Println("can't save metrics")
+			http.Error(rw, "can't save metrics", http.StatusBadRequest)
+			return
+		}
+		if cfg.StoreInterval.Seconds() == 0 {
+			err = repo.DumpMetrics(cfg)
+			if err != nil {
+				http.Error(rw, "can't store metrics", http.StatusInternalServerError)
+				return
+			}
+		}
+		rw.Header().Set("Content-Type", "text/plain")
+		rw.WriteHeader(http.StatusOK)
+		rw.Write([]byte("Metric saved, count: " + strconv.Itoa(count)))
 	}
 }
 

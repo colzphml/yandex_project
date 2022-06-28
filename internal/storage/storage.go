@@ -12,6 +12,7 @@ import (
 
 type Repositorier interface {
 	SaveMetric(metric metrics.Metrics) error
+	SaveListMetric(metrics []metrics.Metrics) (int, error)
 	ListMetrics() []string
 	GetValue(metricName string) (metrics.Metrics, error)
 	DumpMetrics(cfg *serverutils.ServerConfig) error

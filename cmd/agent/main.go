@@ -43,7 +43,8 @@ Loop:
 			//send by url
 			//metrics.SendMetrics(cfg, metricsStore, client)
 			//send by json
-			metrics.SendJSONMetrics(cfg, metricsStore, client)
+			//metrics.SendJSONMetrics(cfg, metricsStore, client)
+			metrics.SendListJSONMetrics(cfg, metricsStore, client)
 		case <-sigChan:
 			tickerPoll.Stop()
 			tickerReport.Stop()

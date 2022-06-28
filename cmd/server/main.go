@@ -29,6 +29,7 @@ func HTTPServer(cfg *serverutils.ServerConfig, repo storage.Repositorier) *http.
 	r.Post("/update/{metric_type}/{metric_name}/{metric_value}", handlers.SaveHandler(repo, cfg))
 	r.Get("/value/{metric_type}/{metric_name}", handlers.GetValueHandler(repo))
 	r.Post("/update/", handlers.SaveJSONHandler(repo, cfg))
+	r.Post("/updates/", handlers.SaveJSONArrayHandler(repo, cfg))
 	r.Post("/value/", handlers.GetJSONValueHandler(repo, cfg))
 	r.Get("/ping", handlers.PingHandler(repo, cfg))
 	r.Get("/", handlers.ListMetricsHandler(repo, cfg))

@@ -175,6 +175,23 @@ func SendJSONMetrics(cfg *agentutils.AgentConfig, input map[string]Metrics, clie
 	}
 }
 
+func SendListJSONMetrics(cfg *agentutils.AgentConfig, input map[string]Metrics, client *http.Client) {
+	urlPrefix := "http://" + cfg.ServerAddress + "/updates/"
+	var list []Metrics
+	for _, v := range input {
+		v.FillHash(cfg.Key)
+		list = append(list, v)
+	}
+	postBody, err := json.Marshal(list)
+	if err != nil {
+		log.Println(err.Error())
+	}
+	err = agentutils.HTTPSendJSON(client, urlPrefix, postBody)
+	if err != nil {
+		log.Println(err.Error())
+	}
+}
+
 func ConvertToMetric(metricName, metricType, metricValue string) (Metrics, error) {
 	var result Metrics
 	result.ID = metricName
