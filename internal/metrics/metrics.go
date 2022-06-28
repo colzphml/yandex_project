@@ -19,6 +19,12 @@ import (
 	"github.com/colzphml/yandex_project/internal/agentutils"
 )
 
+var (
+	ErrUndefinedType = errors.New("type of metric undefined")
+	ErrParseMetric   = errors.New("can't parse metric")
+	ErrWrongType     = errors.New("metric have another type")
+)
+
 type Metrics struct {
 	ID    string   `json:"id"`              // имя метрики
 	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
@@ -81,11 +87,6 @@ func (m *Metrics) CompareHash(key string) (bool, error) {
 	}
 	return true, nil
 }
-
-var (
-	ErrUndefinedType = errors.New("type of metric undefined")
-	ErrParseMetric   = errors.New("can't parse metric")
-)
 
 func GetRuntimeMetric(m *runtime.MemStats, fieldName string, fieldType string) (Metrics, error) {
 	var result Metrics
@@ -202,7 +203,7 @@ func NewValue(oldValue Metrics, newValue Metrics) (Metrics, error) {
 	var result Metrics
 	result.ID = newValue.ID
 	if oldValue.MType != newValue.MType {
-		return Metrics{}, errors.New("metric have another type")
+		return Metrics{}, ErrWrongType
 	}
 	result.MType = newValue.MType
 	switch newValue.MType {

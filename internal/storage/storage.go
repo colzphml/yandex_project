@@ -2,6 +2,7 @@ package storage
 
 import (
 	"log"
+	"time"
 
 	"github.com/colzphml/yandex_project/internal/metrics"
 	"github.com/colzphml/yandex_project/internal/serverutils"
@@ -13,37 +14,43 @@ type Repositorier interface {
 	SaveMetric(metric metrics.Metrics) error
 	ListMetrics() []string
 	GetValue(metricName string) (metrics.Metrics, error)
-	StoreMetric(cfg *serverutils.ServerConfig) error
+	DumpMetrics(cfg *serverutils.ServerConfig) error
 	Close()
 	Ping() error
 }
 
-func CreateRepo(cfg *serverutils.ServerConfig) (Repositorier, error) {
+func CreateRepo(cfg *serverutils.ServerConfig) (Repositorier, *time.Ticker, error) {
+	var tickerSave *time.Ticker
+	tickerSave = &time.Ticker{}
 	switch {
+	//использование БД
 	case cfg.DBDSN != "":
-		var repo Repositorier
 		repo, err := dbrepo.NewMetricRepo(cfg)
 		if err != nil {
-			repo, err = filerepo.NewMetricRepo(cfg)
-			log.Println("used file")
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			log.Println("used db")
+			return nil, nil, err
 		}
 		err = repo.Ping()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		log.Println("ping OK")
-		return repo, nil
+		log.Println("used db")
+		return repo, tickerSave, nil
+	//использование файла
+	case cfg.StoreFile != "":
+		repo, err := filerepo.NewMetricRepo(cfg)
+		if err != nil {
+			return nil, nil, err
+		}
+		if cfg.StoreInterval.Seconds() != 0 {
+			tickerSave = time.NewTicker(cfg.StoreInterval)
+		}
+		return repo, tickerSave, nil
 	default:
 		repo, err := filerepo.NewMetricRepo(cfg)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		log.Println("used file")
-		return repo, nil
+		return repo, tickerSave, nil
 	}
 }

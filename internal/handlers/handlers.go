@@ -3,9 +3,9 @@ package handlers
 import (
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/colzphml/yandex_project/internal/metrics"
 	"github.com/colzphml/yandex_project/internal/serverutils"
@@ -13,7 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func SaveHandler(repo storage.Repositorier) http.HandlerFunc {
+func SaveHandler(repo storage.Repositorier, cfg *serverutils.ServerConfig) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		metricName := chi.URLParam(r, "metric_name")
 		metricType := chi.URLParam(r, "metric_type")
@@ -35,6 +35,13 @@ func SaveHandler(repo storage.Repositorier) http.HandlerFunc {
 		if err != nil {
 			http.Error(rw, "can't save metric: "+r.URL.Path, http.StatusBadRequest)
 			return
+		}
+		if cfg.StoreInterval.Seconds() == 0 {
+			err = repo.DumpMetrics(cfg)
+			if err != nil {
+				http.Error(rw, "can't store metric: "+mValue.ID, http.StatusInternalServerError)
+				return
+			}
 		}
 		rw.Header().Set("Content-Type", "text/plain")
 		rw.WriteHeader(http.StatusOK)
@@ -66,11 +73,12 @@ func SaveJSONHandler(repo storage.Repositorier, cfg *serverutils.ServerConfig) h
 		}
 		err = repo.SaveMetric(m)
 		if err != nil {
+			log.Println("can't save metric: " + m.ID)
 			http.Error(rw, "can't save metric: "+m.ID, http.StatusBadRequest)
 			return
 		}
-		if cfg.StoreInterval == 0*time.Second {
-			err = repo.StoreMetric(cfg)
+		if cfg.StoreInterval.Seconds() == 0 {
+			err = repo.DumpMetrics(cfg)
 			if err != nil {
 				http.Error(rw, "can't store metric: "+m.ID, http.StatusInternalServerError)
 				return

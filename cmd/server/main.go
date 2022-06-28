@@ -26,7 +26,7 @@ func HTTPServer(cfg *serverutils.ServerConfig, repo storage.Repositorier) *http.
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	r.Post("/update/{metric_type}/{metric_name}/{metric_value}", handlers.SaveHandler(repo))
+	r.Post("/update/{metric_type}/{metric_name}/{metric_value}", handlers.SaveHandler(repo, cfg))
 	r.Get("/value/{metric_type}/{metric_name}", handlers.GetValueHandler(repo))
 	r.Post("/update/", handlers.SaveJSONHandler(repo, cfg))
 	r.Post("/value/", handlers.GetJSONValueHandler(repo, cfg))
@@ -47,30 +47,26 @@ func HTTPServer(cfg *serverutils.ServerConfig, repo storage.Repositorier) *http.
 func main() {
 	cfg := serverutils.LoadServerConfig()
 	log.Println(cfg)
-	repo, err := storage.CreateRepo(cfg)
+	repo, tickerSave, err := storage.CreateRepo(cfg)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 	//для "штатного" завершения сервера
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
-	var tickerSave *time.Ticker
-	if cfg.StoreInterval.Seconds() != 0 {
-		tickerSave = time.NewTicker(cfg.StoreInterval)
-	}
 	srv := HTTPServer(cfg, repo)
 Loop:
 	for {
 		select {
 		case <-tickerSave.C:
-			err := repo.StoreMetric(cfg)
+			err := repo.DumpMetrics(cfg)
 			if err != nil {
 				log.Println(err.Error())
 			}
 		case <-sigChan:
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer func() {
-				repo.StoreMetric(cfg)
+				repo.DumpMetrics(cfg)
 				log.Println("metrics stored")
 				repo.Close()
 				tickerSave.Stop()

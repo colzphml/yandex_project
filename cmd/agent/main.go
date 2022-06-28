@@ -41,7 +41,7 @@ Loop:
 			pollCouter++
 		case <-tickerReport.C:
 			//send by url
-			metrics.SendMetrics(cfg, metricsStore, client)
+			//metrics.SendMetrics(cfg, metricsStore, client)
 			//send by json
 			metrics.SendJSONMetrics(cfg, metricsStore, client)
 		case <-sigChan:

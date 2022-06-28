@@ -45,7 +45,7 @@ func NewMetricRepo(cfg *serverutils.ServerConfig) (*MetricRepo, error) {
 	}
 }
 
-func (m *MetricRepo) StoreMetric(cfg *serverutils.ServerConfig) error {
+func (m *MetricRepo) DumpMetrics(cfg *serverutils.ServerConfig) error {
 	if cfg.StoreFile != "" {
 		file, err := os.OpenFile(cfg.StoreFile, os.O_RDWR|os.O_CREATE, 0777)
 		if err != nil {
