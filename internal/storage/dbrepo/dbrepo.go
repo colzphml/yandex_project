@@ -13,10 +13,6 @@ import (
 )
 
 var (
-	ErrNoDB = errors.New("connection to db was not created")
-)
-
-var (
 	SQLCreateTable        = "CREATE TABLE IF NOT EXISTS public.metrics (id varchar(50) NOT NULL,mtype varchar(50) NULL,delta int8 NULL,value float8 NULL,CONSTRAINT metrics_pkey PRIMARY KEY (id));"
 	SQLTruncateTable      = "TRUNCATE TABLE public.metrics"
 	SQLInsertGaugeValue   = "insert into metrics (id, mtype , value) values ($1,'gauge', $2) on conflict (id) do update set value = EXCLUDED.value"

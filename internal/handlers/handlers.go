@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -24,11 +25,11 @@ func SaveHandler(repo storage.Repositorier, cfg *serverutils.ServerConfig) http.
 			return
 		}
 		mValue, err := metrics.ConvertToMetric(metricName, metricType, metricValue)
-		switch err {
-		case metrics.ErrParseMetric:
+		switch {
+		case errors.Is(err, metrics.ErrParseMetric):
 			http.Error(rw, err.Error()+" "+r.URL.Path, http.StatusBadRequest)
 			return
-		case metrics.ErrUndefinedType:
+		case errors.Is(err, metrics.ErrUndefinedType):
 			http.Error(rw, err.Error()+" "+r.URL.Path, http.StatusNotImplemented)
 			return
 		}
