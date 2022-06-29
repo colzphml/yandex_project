@@ -68,7 +68,7 @@ func (m *MetricRepo) SaveMetric(metric metrics.Metrics) error {
 	row := m.Pool.QueryRow(ctx, SQLSelectValueType, metric.ID)
 	err := row.Scan(&oldValue)
 	if err != nil {
-		if err != pgx.ErrNoRows {
+		if !errors.Is(err, pgx.ErrNoRows) {
 			return err
 		}
 		oldValue = metric.MType
@@ -103,7 +103,7 @@ func (m *MetricRepo) SaveListMetric(metricarray []metrics.Metrics) (int, error) 
 		row := tx.QueryRow(ctx, SQLSelectValueType, metric.ID)
 		err := row.Scan(&oldValue)
 		if err != nil {
-			if err != pgx.ErrNoRows {
+			if !errors.Is(err, pgx.ErrNoRows) {
 				log.Println(err)
 				continue
 			}
@@ -169,7 +169,7 @@ func (m *MetricRepo) GetValue(metricName string) (metrics.Metrics, error) {
 	row := m.Pool.QueryRow(ctx, SQLSelectValue, metricName)
 	err := row.Scan(&metric.ID, &metric.MType, &metric.Value, &metric.Delta)
 	if err != nil {
-		if err != pgx.ErrNoRows {
+		if !errors.Is(err, pgx.ErrNoRows) {
 			return metrics.Metrics{}, err
 		}
 		return metrics.Metrics{}, errors.New("metric not saved")
