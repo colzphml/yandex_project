@@ -3,14 +3,19 @@ package agentutils
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/caarlos0/env"
+	"github.com/rs/zerolog"
 	"gopkg.in/yaml.v3"
 )
+
+var log = zerolog.New(LogConfig()).With().Timestamp().Str("component", "agentutils").Logger()
 
 type AgentConfig struct {
 	ServerAddress  string            `yaml:"ServerAddress" env:"ADDRESS"`
@@ -23,11 +28,11 @@ type AgentConfig struct {
 func (cfg *AgentConfig) yamlRead(file string) {
 	yfile, err := ioutil.ReadFile(file)
 	if err != nil {
-		log.Println(err.Error())
+		log.Error().Err(err).Msg("cannot open yaml file")
 	} else {
 		err = yaml.Unmarshal(yfile, &cfg)
 		if err != nil {
-			log.Println(err.Error())
+			log.Error().Err(err).Msg("cannot parse yaml file")
 		}
 	}
 }
@@ -35,7 +40,7 @@ func (cfg *AgentConfig) yamlRead(file string) {
 func (cfg *AgentConfig) envRead() {
 	err := env.Parse(cfg)
 	if err != nil {
-		log.Println(err.Error())
+		log.Error().Err(err).Msg("cannot read eenvironment variables")
 	}
 }
 
@@ -151,4 +156,12 @@ func HTTPSendJSON(client *http.Client, url string, postBody []byte) error {
 		return err
 	}
 	return nil
+}
+
+func LogConfig() zerolog.ConsoleWriter {
+	output := zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}
+	output.FormatLevel = func(i interface{}) string {
+		return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
+	}
+	return output
 }

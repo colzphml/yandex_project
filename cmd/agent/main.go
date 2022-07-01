@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"math/rand"
 	"net/http"
 	"os"
@@ -12,7 +11,11 @@ import (
 
 	"github.com/colzphml/yandex_project/internal/agentutils"
 	"github.com/colzphml/yandex_project/internal/metrics"
+	"github.com/colzphml/yandex_project/internal/metrics/metricsagent"
+	"github.com/rs/zerolog"
 )
+
+var log = zerolog.New(agentutils.LogConfig()).With().Timestamp().Str("component", "agent").Logger()
 
 func main() {
 	//read config file
@@ -37,18 +40,18 @@ Loop:
 		select {
 		case <-tickerPoll.C:
 			runtime.ReadMemStats(&runtimeState)
-			metricsStore = metrics.CollectMetrics(cfg, &runtimeState, pollCouter)
+			metricsStore = metricsagent.CollectMetrics(cfg.Metrics, &runtimeState, pollCouter)
 			pollCouter++
 		case <-tickerReport.C:
 			//send by url
-			//metrics.SendMetrics(cfg, metricsStore, client)
+			//metrics.SendMetrics(cfg.ServerAddress, metricsStore, client)
 			//send by json
-			//metrics.SendJSONMetrics(cfg, metricsStore, client)
-			metrics.SendListJSONMetrics(cfg, metricsStore, client)
+			//metrics.SendJSONMetrics(cfg.ServerAddress, cfg.Key, metricsStore, client)
+			metricsagent.SendListJSONMetrics(cfg.ServerAddress, cfg.Key, metricsStore, client)
 		case <-sigChan:
 			tickerPoll.Stop()
 			tickerReport.Stop()
-			log.Println("close program")
+			log.Info().Msg("initialize table")
 			break Loop
 		}
 	}

@@ -1,16 +1,20 @@
 package filerepo
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
 	"os"
 	"sort"
 
 	"github.com/colzphml/yandex_project/internal/metrics"
+	"github.com/colzphml/yandex_project/internal/metrics/metricsserver"
 	"github.com/colzphml/yandex_project/internal/serverutils"
+	"github.com/rs/zerolog"
 )
+
+var log = zerolog.New(serverutils.LogConfig()).With().Timestamp().Str("component", "filerepo").Logger()
 
 var (
 	ErrNoFileDeclared = errors.New("RESTORE == true, but STORE_FILE is empty")
@@ -46,7 +50,7 @@ func NewMetricRepo(cfg *serverutils.ServerConfig) (*MetricRepo, error) {
 	}
 }
 
-func (m *MetricRepo) DumpMetrics(cfg *serverutils.ServerConfig) error {
+func (m *MetricRepo) DumpMetrics(ctx context.Context, cfg *serverutils.ServerConfig) error {
 	if cfg.StoreFile != "" {
 		file, err := os.OpenFile(cfg.StoreFile, os.O_RDWR|os.O_CREATE, 0777)
 		if err != nil {
@@ -58,9 +62,9 @@ func (m *MetricRepo) DumpMetrics(cfg *serverutils.ServerConfig) error {
 	return nil
 }
 
-func (m *MetricRepo) SaveMetric(metric metrics.Metrics) error {
+func (m *MetricRepo) SaveMetric(ctx context.Context, metric metrics.Metrics) error {
 	if v, ok := m.DB[metric.ID]; ok {
-		newValue, err := metrics.NewValue(v, metric)
+		newValue, err := metricsserver.NewValue(v, metric)
 		if err != nil {
 			return err
 		}
@@ -71,13 +75,13 @@ func (m *MetricRepo) SaveMetric(metric metrics.Metrics) error {
 	return nil
 }
 
-func (m *MetricRepo) SaveListMetric(metricarray []metrics.Metrics) (int, error) {
+func (m *MetricRepo) SaveListMetric(ctx context.Context, metricarray []metrics.Metrics) (int, error) {
 	counter := 0
 	for _, metric := range metricarray {
 		if v, ok := m.DB[metric.ID]; ok {
-			newValue, err := metrics.NewValue(v, metric)
+			newValue, err := metricsserver.NewValue(v, metric)
 			if err != nil {
-				log.Println(err)
+				log.Error().Err(err).Msg("trouble with calculate new value")
 				continue
 			}
 			m.DB[metric.ID] = newValue
@@ -89,7 +93,7 @@ func (m *MetricRepo) SaveListMetric(metricarray []metrics.Metrics) (int, error) 
 	return counter, nil
 }
 
-func (m *MetricRepo) ListMetrics() []string {
+func (m *MetricRepo) ListMetrics(ctx context.Context) []string {
 	var list []string
 	for k, v := range m.DB {
 		list = append(list, k+":"+v.ValueString())
@@ -100,7 +104,7 @@ func (m *MetricRepo) ListMetrics() []string {
 	return list
 }
 
-func (m *MetricRepo) GetValue(metricName string) (metrics.Metrics, error) {
+func (m *MetricRepo) GetValue(ctx context.Context, metricName string) (metrics.Metrics, error) {
 	v, ok := m.DB[metricName]
 	if !ok {
 		return metrics.Metrics{}, errors.New("metric not saved")
@@ -112,6 +116,6 @@ func (m *MetricRepo) Close() {
 	//может быть в будущем будет пересмотрена работа с файлами
 }
 
-func (m *MetricRepo) Ping() error {
+func (m *MetricRepo) Ping(ctx context.Context) error {
 	return nil
 }

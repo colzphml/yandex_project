@@ -1,40 +1,43 @@
 package storage
 
 import (
-	"log"
+	"context"
 	"time"
 
 	"github.com/colzphml/yandex_project/internal/metrics"
 	"github.com/colzphml/yandex_project/internal/serverutils"
 	"github.com/colzphml/yandex_project/internal/storage/dbrepo"
 	"github.com/colzphml/yandex_project/internal/storage/filerepo"
+	"github.com/rs/zerolog"
 )
 
+var log = zerolog.New(serverutils.LogConfig()).With().Timestamp().Str("component", "storage").Logger()
+
 type Repositorier interface {
-	SaveMetric(metric metrics.Metrics) error
-	SaveListMetric(metrics []metrics.Metrics) (int, error)
-	ListMetrics() []string
-	GetValue(metricName string) (metrics.Metrics, error)
-	DumpMetrics(cfg *serverutils.ServerConfig) error
+	SaveMetric(ctx context.Context, metric metrics.Metrics) error
+	SaveListMetric(ctx context.Context, metrics []metrics.Metrics) (int, error)
+	ListMetrics(ctx context.Context) []string
+	GetValue(ctx context.Context, metricName string) (metrics.Metrics, error)
+	DumpMetrics(ctx context.Context, cfg *serverutils.ServerConfig) error
 	Close()
-	Ping() error
+	Ping(ctx context.Context) error
 }
 
-func CreateRepo(cfg *serverutils.ServerConfig) (Repositorier, *time.Ticker, error) {
+func CreateRepo(ctx context.Context, cfg *serverutils.ServerConfig) (Repositorier, *time.Ticker, error) {
 	var tickerSave *time.Ticker
 	tickerSave = &time.Ticker{}
 	switch {
 	//использование БД
 	case cfg.DBDSN != "":
-		repo, err := dbrepo.NewMetricRepo(cfg)
+		repo, err := dbrepo.NewMetricRepo(ctx, cfg)
 		if err != nil {
 			return nil, nil, err
 		}
-		err = repo.Ping()
+		err = repo.Ping(ctx)
 		if err != nil {
 			return nil, nil, err
 		}
-		log.Println("used db")
+		log.Info().Msg("used db")
 		return repo, tickerSave, nil
 	//использование файла
 	case cfg.StoreFile != "":
@@ -51,7 +54,7 @@ func CreateRepo(cfg *serverutils.ServerConfig) (Repositorier, *time.Ticker, erro
 		if err != nil {
 			return nil, nil, err
 		}
-		log.Println("used file")
+		log.Info().Msg("used file")
 		return repo, tickerSave, nil
 	}
 }

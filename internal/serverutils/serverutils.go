@@ -3,16 +3,21 @@ package serverutils
 import (
 	"compress/gzip"
 	"flag"
+	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/caarlos0/env"
+	"github.com/rs/zerolog"
 	"gopkg.in/yaml.v3"
 )
+
+var log = zerolog.New(LogConfig()).With().Timestamp().Str("component", "serverutils").Logger()
 
 type ServerConfig struct {
 	ServerAddress string        `yaml:"ServerAddress" env:"ADDRESS"`
@@ -26,11 +31,11 @@ type ServerConfig struct {
 func (cfg *ServerConfig) yamlRead(file string) {
 	yfile, err := ioutil.ReadFile(file)
 	if err != nil {
-		log.Println(err.Error())
+		log.Error().Err(err).Msg("file open trouble")
 	} else {
 		err = yaml.Unmarshal(yfile, &cfg)
 		if err != nil {
-			log.Println(err.Error())
+			log.Error().Err(err).Msg("parse yaml err")
 		}
 	}
 }
@@ -38,7 +43,7 @@ func (cfg *ServerConfig) yamlRead(file string) {
 func (cfg *ServerConfig) envRead() {
 	err := env.Parse(cfg)
 	if err != nil {
-		log.Println(err.Error())
+		log.Error().Err(err).Msg("problem with environment read")
 	}
 }
 
@@ -118,4 +123,12 @@ func CheckGZIP(r *http.Request) (io.ReadCloser, error) {
 		return gz, nil
 	}
 	return r.Body, nil
+}
+
+func LogConfig() zerolog.ConsoleWriter {
+	output := zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}
+	output.FormatLevel = func(i interface{}) string {
+		return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
+	}
+	return output
 }

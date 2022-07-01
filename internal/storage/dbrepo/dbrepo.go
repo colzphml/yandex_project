@@ -3,14 +3,16 @@ package dbrepo
 import (
 	"context"
 	"errors"
-	"log"
 	"sort"
 
 	"github.com/colzphml/yandex_project/internal/metrics"
 	"github.com/colzphml/yandex_project/internal/serverutils"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/rs/zerolog"
 )
+
+var log = zerolog.New(serverutils.LogConfig()).With().Timestamp().Str("component", "dbrepo").Logger()
 
 var (
 	SQLCreateTable        = "CREATE TABLE IF NOT EXISTS public.metrics (id varchar(50) NOT NULL,mtype varchar(50) NULL,delta int8 NULL,value float8 NULL,CONSTRAINT metrics_pkey PRIMARY KEY (id));"
@@ -26,8 +28,7 @@ type MetricRepo struct {
 	Pool *pgxpool.Pool
 }
 
-func NewMetricRepo(cfg *serverutils.ServerConfig) (*MetricRepo, error) {
-	ctx := context.Background()
+func NewMetricRepo(ctx context.Context, cfg *serverutils.ServerConfig) (*MetricRepo, error) {
 	repo := &MetricRepo{}
 	dbpool, err := pgxpool.Connect(ctx, cfg.DBDSN)
 	if err != nil {
@@ -38,7 +39,7 @@ func NewMetricRepo(cfg *serverutils.ServerConfig) (*MetricRepo, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("initialize table: %s\n", ct.String())
+	log.Info().Str("initialize table", ct.String())
 	if !cfg.Restore {
 		_, err = repo.Pool.Exec(ctx, SQLTruncateTable)
 		if err != nil {
@@ -49,7 +50,7 @@ func NewMetricRepo(cfg *serverutils.ServerConfig) (*MetricRepo, error) {
 }
 
 //этот метод не используется для варианта с ДБ
-func (m *MetricRepo) DumpMetrics(cfg *serverutils.ServerConfig) error {
+func (m *MetricRepo) DumpMetrics(ctx context.Context, cfg *serverutils.ServerConfig) error {
 	return nil
 }
 
@@ -57,13 +58,11 @@ func (m *MetricRepo) Close() {
 	m.Pool.Close()
 }
 
-func (m *MetricRepo) Ping() error {
-	ctx := context.Background()
+func (m *MetricRepo) Ping(ctx context.Context) error {
 	return m.Pool.Ping(ctx)
 }
 
-func (m *MetricRepo) SaveMetric(metric metrics.Metrics) error {
-	ctx := context.Background()
+func (m *MetricRepo) SaveMetric(ctx context.Context, metric metrics.Metrics) error {
 	var oldValue string
 	row := m.Pool.QueryRow(ctx, SQLSelectValueType, metric.ID)
 	err := row.Scan(&oldValue)
@@ -91,8 +90,7 @@ func (m *MetricRepo) SaveMetric(metric metrics.Metrics) error {
 	return nil
 }
 
-func (m *MetricRepo) SaveListMetric(metricarray []metrics.Metrics) (int, error) {
-	ctx := context.Background()
+func (m *MetricRepo) SaveListMetric(ctx context.Context, metricarray []metrics.Metrics) (int, error) {
 	counter := 0
 	tx, err := m.Pool.Begin(ctx)
 	if err != nil {
@@ -104,40 +102,39 @@ func (m *MetricRepo) SaveListMetric(metricarray []metrics.Metrics) (int, error) 
 		err := row.Scan(&oldValue)
 		if err != nil {
 			if !errors.Is(err, pgx.ErrNoRows) {
-				log.Println(err)
+				log.Error().Err(err).Msg("failed get previous value")
 				continue
 			}
 			oldValue = metric.MType
 		}
 		if oldValue != metric.MType {
-			log.Println(metrics.ErrUndefinedType.Error())
+			log.Error().Err(metrics.ErrUndefinedType).Msg("wrong metric type")
 			continue
 		}
 		switch metric.MType {
 		case "gauge":
 			_, err := tx.Exec(ctx, SQLInsertGaugeValue, metric.ID, metric.Value)
 			if err != nil {
-				log.Println(err)
+				log.Error().Err(err).Msg("failed update gauge metric")
 				continue
 			}
 		case "counter":
 			_, err := tx.Exec(ctx, SQLInsertCounterValue, metric.ID, metric.Delta)
 			if err != nil {
-				log.Println(err)
+				log.Error().Err(err).Msg("failed update counter metric")
 				continue
 			}
 		}
 		counter++
 	}
 	if err := tx.Commit(ctx); err != nil {
-		log.Printf("update drivers: unable to commit: %v", err)
+		log.Error().Err(err).Msg("update drivers: unable to commit")
 		return 0, err
 	}
 	return counter, nil
 }
 
-func (m *MetricRepo) ListMetrics() []string {
-	ctx := context.Background()
+func (m *MetricRepo) ListMetrics(ctx context.Context) []string {
 	var list []string
 	rows, err := m.Pool.Query(ctx, SQLSelectAllValues)
 	if err != nil {
@@ -148,14 +145,14 @@ func (m *MetricRepo) ListMetrics() []string {
 		var metric metrics.Metrics
 		err = rows.Scan(&metric.ID, &metric.MType, &metric.Value, &metric.Delta)
 		if err != nil {
-			log.Println("scan err: " + err.Error())
+			log.Error().Err(err).Msg("scan error for list metrics")
 			continue
 		}
 		list = append(list, metric.ID+":"+metric.ValueString())
 	}
 	err = rows.Err()
 	if err != nil {
-		log.Println(err)
+		log.Error().Err(err).Msg("error in scan multiple values of metrics")
 	}
 	sort.Slice(list, func(i, j int) bool {
 		return list[i] < list[j]
@@ -163,8 +160,7 @@ func (m *MetricRepo) ListMetrics() []string {
 	return list
 }
 
-func (m *MetricRepo) GetValue(metricName string) (metrics.Metrics, error) {
-	ctx := context.Background()
+func (m *MetricRepo) GetValue(ctx context.Context, metricName string) (metrics.Metrics, error) {
 	var metric metrics.Metrics
 	row := m.Pool.QueryRow(ctx, SQLSelectValue, metricName)
 	err := row.Scan(&metric.ID, &metric.MType, &metric.Value, &metric.Delta)
