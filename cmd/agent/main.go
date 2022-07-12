@@ -32,7 +32,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	wg.Add(3)
 	go metricsagent.CollectRuntimeWorker(ctx, wg, cfg, metricsStore)
-	go metricsagent.CollectSystemWorker(ctx, wg, cfg, metricsStore)
+	//go metricsagent.CollectSystemWorker(ctx, wg, cfg, metricsStore)
 	go metricsagent.SendWorker(ctx, wg, cfg, metricsStore)
 	<-sigChan
 	cancel()
