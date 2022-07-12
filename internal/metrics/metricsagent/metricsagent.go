@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -15,6 +16,8 @@ import (
 	"github.com/colzphml/yandex_project/internal/agentutils"
 	"github.com/colzphml/yandex_project/internal/metrics"
 	"github.com/rs/zerolog"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 )
 
 type MetricRepo struct {
@@ -106,7 +109,6 @@ func CollectRuntimeWorker(ctx context.Context, wg *sync.WaitGroup, cfg *agentuti
 	}
 }
 
-/*
 func ReadSystemeMetrics(repo *MetricRepo) {
 	repo.mu.Lock()
 	defer repo.mu.Unlock()
@@ -162,7 +164,7 @@ func CollectSystemWorker(ctx context.Context, wg *sync.WaitGroup, cfg *agentutil
 		}
 	}
 }
-*/
+
 func SendMetrics(srv string, repo *MetricRepo, client *http.Client) {
 	var urlPrefix, urlPart string
 	urlPrefix = "http://" + srv
