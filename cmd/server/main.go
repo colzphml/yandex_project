@@ -48,7 +48,7 @@ func HTTPServer(ctx context.Context, cfg *serverutils.ServerConfig, repo storage
 }
 
 func main() {
-	log.Info().Msg("Hello World")
+	log.Info().Msg("server started")
 	cfg := serverutils.LoadServerConfig()
 	log.Info().Dict("cfg", zerolog.Dict().
 		Str("ServerAddress", cfg.ServerAddress).
