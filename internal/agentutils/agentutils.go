@@ -3,30 +3,36 @@ package agentutils
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/caarlos0/env"
+	"github.com/rs/zerolog"
 	"gopkg.in/yaml.v3"
 )
+
+var log = zerolog.New(LogConfig()).With().Timestamp().Str("component", "agentutils").Logger()
 
 type AgentConfig struct {
 	ServerAddress  string            `yaml:"ServerAddress" env:"ADDRESS"`
 	PollInterval   time.Duration     `yaml:"PollInterval" env:"POLL_INTERVAL"`
 	ReportInterval time.Duration     `yaml:"ReportInterval" env:"REPORT_INTERVAL"`
+	Key            string            `yaml:"Key" env:"KEY"`
 	Metrics        map[string]string `yaml:"Metrics"`
 }
 
 func (cfg *AgentConfig) yamlRead(file string) {
 	yfile, err := ioutil.ReadFile(file)
 	if err != nil {
-		log.Println(err.Error())
+		log.Error().Err(err).Msg("cannot open yaml file")
 	} else {
 		err = yaml.Unmarshal(yfile, &cfg)
 		if err != nil {
-			log.Println(err.Error())
+			log.Error().Err(err).Msg("cannot parse yaml file")
 		}
 	}
 }
@@ -34,16 +40,43 @@ func (cfg *AgentConfig) yamlRead(file string) {
 func (cfg *AgentConfig) envRead() {
 	err := env.Parse(cfg)
 	if err != nil {
-		log.Println(err.Error())
+		log.Error().Err(err).Msg("cannot read eenvironment variables")
 	}
 }
 
-//можно ли делать флаги без дефолтного значения, например если пустой, то использовать то, что уже записано?
-//на вскидку можно сделать через flag.Func, но это "усложнит код"
 func (cfg *AgentConfig) flagsRead() {
-	flag.StringVar(&cfg.ServerAddress, "a", "127.0.0.1:8080", "server address like <server>:<port>")
-	flag.DurationVar(&cfg.ReportInterval, "r", 10*time.Second, "duration for send metrics to server, fore example 100s")
-	flag.DurationVar(&cfg.PollInterval, "p", 2*time.Second, "duration for collect metrics to server, for example 20s")
+	flag.Func("a", "server address like <server>:<port>, example: -a \"127.0.0.1:8080\"", func(flagValue string) error {
+		if flagValue != "" {
+			cfg.ServerAddress = flagValue
+		}
+		return nil
+	})
+	flag.Func("r", "duration for send metrics to server, example: -r \"100s\"", func(flagValue string) error {
+		if flagValue != "" {
+			interval, err := time.ParseDuration(flagValue)
+			if err != nil {
+				return err
+			}
+			cfg.ReportInterval = interval
+		}
+		return nil
+	})
+	flag.Func("p", "duration for collect metrics to server, example: -p \"20s\"", func(flagValue string) error {
+		if flagValue != "" {
+			interval, err := time.ParseDuration(flagValue)
+			if err != nil {
+				return err
+			}
+			cfg.PollInterval = interval
+		}
+		return nil
+	})
+	flag.Func("k", "key for data hash, example: -k \"sample key\"", func(flagValue string) error {
+		if flagValue != "" {
+			cfg.Key = flagValue
+		}
+		return nil
+	})
 	flag.Parse()
 }
 
@@ -53,6 +86,7 @@ func LoadAgentConfig() *AgentConfig {
 		ServerAddress:  "127.0.0.1:8080",
 		PollInterval:   time.Duration(2 * time.Second),
 		ReportInterval: time.Duration(10 * time.Second),
+		Key:            "",
 		Metrics: map[string]string{
 			"Alloc":         "gauge",
 			"BuckHashSys":   "gauge",
@@ -122,4 +156,12 @@ func HTTPSendJSON(client *http.Client, url string, postBody []byte) error {
 		return err
 	}
 	return nil
+}
+
+func LogConfig() zerolog.ConsoleWriter {
+	output := zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}
+	output.FormatLevel = func(i interface{}) string {
+		return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
+	}
+	return output
 }

@@ -1,97 +1,60 @@
 package storage
 
 import (
-	"encoding/json"
-	"errors"
-	"io"
-	"os"
-	"sort"
+	"context"
+	"time"
 
 	"github.com/colzphml/yandex_project/internal/metrics"
 	"github.com/colzphml/yandex_project/internal/serverutils"
+	"github.com/colzphml/yandex_project/internal/storage/dbrepo"
+	"github.com/colzphml/yandex_project/internal/storage/filerepo"
+	"github.com/rs/zerolog"
 )
 
-var (
-	ErrNoFileDeclared = errors.New("RESTORE == true, but STORE_FILE is empty")
-)
+var log = zerolog.New(serverutils.LogConfig()).With().Timestamp().Str("component", "storage").Logger()
 
 type Repositorier interface {
-	SaveMetric(metric metrics.Metrics) error
-	ListMetrics() []string
-	GetValue(metricName string) (metrics.Metrics, error)
-	StoreMetric(cfg *serverutils.ServerConfig) error
+	SaveMetric(ctx context.Context, metric metrics.Metrics) error
+	SaveListMetric(ctx context.Context, metrics []metrics.Metrics) (int, error)
+	ListMetrics(ctx context.Context) []string
+	GetValue(ctx context.Context, metricName string) (metrics.Metrics, error)
+	DumpMetrics(ctx context.Context, cfg *serverutils.ServerConfig) error
+	Close()
+	Ping(ctx context.Context) error
 }
 
-type MetricRepo struct {
-	DB map[string]metrics.Metrics
-}
-
-func NewMetricRepo(cfg *serverutils.ServerConfig) (*MetricRepo, error) {
-	repo := &MetricRepo{
-		DB: make(map[string]metrics.Metrics),
-	}
+func CreateRepo(ctx context.Context, cfg *serverutils.ServerConfig) (Repositorier, *time.Ticker, error) {
+	var tickerSave *time.Ticker
+	tickerSave = &time.Ticker{}
 	switch {
-	case cfg.Restore && cfg.StoreFile != "":
-		file, err := os.OpenFile(cfg.StoreFile, os.O_RDONLY|os.O_CREATE, 0777)
+	//использование БД
+	case cfg.DBDSN != "":
+		repo, err := dbrepo.NewMetricRepo(ctx, cfg)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		defer file.Close()
-		err = json.NewDecoder(file).Decode(repo)
+		err = repo.Ping(ctx)
 		if err != nil {
-			if errors.Is(err, io.EOF) {
-				return repo, nil
-			}
-			return nil, err
+			return nil, nil, err
 		}
-		return repo, nil
-	case cfg.Restore && cfg.StoreFile == "":
-		return nil, ErrNoFileDeclared
+		log.Info().Msg("used db")
+		return repo, tickerSave, nil
+	//использование файла
+	case cfg.StoreFile != "":
+		repo, err := filerepo.NewMetricRepo(cfg)
+		if err != nil {
+			return nil, nil, err
+		}
+		if cfg.StoreInterval.Seconds() != 0 {
+			tickerSave = time.NewTicker(cfg.StoreInterval)
+		}
+		return repo, tickerSave, nil
 	default:
-		return repo, nil
-	}
-}
-
-func (m *MetricRepo) StoreMetric(cfg *serverutils.ServerConfig) error {
-	if cfg.StoreFile != "" {
-		file, err := os.OpenFile(cfg.StoreFile, os.O_RDWR|os.O_CREATE, 0777)
+		repo, err := filerepo.NewMetricRepo(cfg)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
-		defer file.Close()
-		return json.NewEncoder(file).Encode(m)
+		log.Info().Msg("used file")
+		return repo, tickerSave, nil
 	}
-	return nil
-}
-
-func (m *MetricRepo) SaveMetric(metric metrics.Metrics) error {
-	if v, ok := m.DB[metric.ID]; ok {
-		newValue, err := metrics.NewValue(v, metric)
-		if err != nil {
-			return err
-		}
-		m.DB[metric.ID] = newValue
-	} else {
-		m.DB[metric.ID] = metric
-	}
-	return nil
-}
-
-func (m *MetricRepo) ListMetrics() []string {
-	var list []string
-	for k, v := range m.DB {
-		list = append(list, k+":"+v.ValueString())
-	}
-	sort.Slice(list, func(i, j int) bool {
-		return list[i] < list[j]
-	})
-	return list
-}
-
-func (m *MetricRepo) GetValue(metricName string) (metrics.Metrics, error) {
-	v, ok := m.DB[metricName]
-	if !ok {
-		return metrics.Metrics{}, errors.New("metric not stored")
-	}
-	return v, nil
 }
