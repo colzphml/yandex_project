@@ -34,6 +34,7 @@ func main() {
 	tickerPoll := time.NewTicker(cfg.PollInterval)
 	tickerReport := time.NewTicker(cfg.ReportInterval)
 	//client for send
+	//testtest
 	client := &http.Client{}
 Loop:
 	for {
