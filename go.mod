@@ -8,7 +8,7 @@ require (
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/jackc/pgx/v4 v4.16.1
 	github.com/rs/zerolog v1.27.0
-	github.com/shirou/gopsutil/v3 v3.22.6
+	github.com/shirou/gopsutil v3.21.11+incompatible
 	gopkg.in/yaml.v3 v3.0.1
 )
 
