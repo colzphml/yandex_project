@@ -16,8 +16,8 @@ import (
 	"github.com/colzphml/yandex_project/internal/agentutils"
 	"github.com/colzphml/yandex_project/internal/metrics"
 	"github.com/rs/zerolog"
-	"github.com/shirou/gopsutil/cpu"
-	"github.com/shirou/gopsutil/mem"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 )
 
 type MetricRepo struct {
