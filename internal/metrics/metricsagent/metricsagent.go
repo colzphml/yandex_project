@@ -144,7 +144,7 @@ func ReadSystemeMetrics(repo *MetricRepo) {
 		m = metrics.Metrics{}
 		m.ID = "CPUutilization" + strconv.Itoa(i)
 		m.MType = "gauge"
-		value := CPUutil[i]
+		value := CPUutil[i-1]
 		m.Value = &value
 		repo.db[m.ID] = m
 	}
