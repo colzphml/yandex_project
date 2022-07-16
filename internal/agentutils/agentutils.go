@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/caarlos0/env"
@@ -23,6 +24,7 @@ type AgentConfig struct {
 	ReportInterval time.Duration     `yaml:"ReportInterval" env:"REPORT_INTERVAL"`
 	Key            string            `yaml:"Key" env:"KEY"`
 	Metrics        map[string]string `yaml:"Metrics"`
+	Wg             *sync.WaitGroup
 }
 
 func (cfg *AgentConfig) yamlRead(file string) {
@@ -116,6 +118,7 @@ func LoadAgentConfig() *AgentConfig {
 			"Sys":           "gauge",
 			"TotalAlloc":    "gauge",
 		},
+		Wg: &sync.WaitGroup{},
 	}
 	//yaml config
 	cfg.yamlRead("agent_config.yaml")

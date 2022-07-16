@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
@@ -22,7 +21,6 @@ func main() {
 	now := time.Now()
 	//read config file
 	cfg := agentutils.LoadAgentConfig()
-	wg := &sync.WaitGroup{}
 	metricsStore := metricsagent.NewRepo()
 	//for close programm by signal
 	sigChan := make(chan os.Signal, 1)
@@ -30,12 +28,11 @@ func main() {
 	//for additional metric RandomValue
 	rand.Seed(time.Now().UnixNano())
 	ctx, cancel := context.WithCancel(context.Background())
-	wg.Add(3)
-	go metricsagent.CollectRuntimeWorker(ctx, wg, cfg, metricsStore)
-	go metricsagent.CollectSystemWorker(ctx, wg, cfg, metricsStore)
-	go metricsagent.SendWorker(ctx, wg, cfg, metricsStore)
+	metricsagent.NewWorker(ctx, cfg, metricsStore, metricsagent.CollectRuntimeWorker)
+	metricsagent.NewWorker(ctx, cfg, metricsStore, metricsagent.CollectSystemWorker)
+	metricsagent.NewWorker(ctx, cfg, metricsStore, metricsagent.SendWorker)
 	<-sigChan
 	cancel()
-	wg.Wait()
+	cfg.Wg.Wait()
 	log.Info().Msg(fmt.Sprintf("agent stopped after %v seconds of work", time.Since(now).Seconds()))
 }

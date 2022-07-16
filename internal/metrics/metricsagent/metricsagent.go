@@ -90,7 +90,7 @@ func ReadRuntimeMetrics(repo *MetricRepo, metricsDescr map[string]string, runtim
 	repo.db[randMetrics.ID] = randMetrics
 }
 
-func CollectRuntimeWorker(ctx context.Context, wg *sync.WaitGroup, cfg *agentutils.AgentConfig, repo *MetricRepo) {
+func CollectRuntimeWorker(ctx context.Context, cfg *agentutils.AgentConfig, repo *MetricRepo) {
 	var runtimeState runtime.MemStats
 	var pollCouter int64
 	tickerPoll := time.NewTicker(cfg.PollInterval)
@@ -103,7 +103,7 @@ func CollectRuntimeWorker(ctx context.Context, wg *sync.WaitGroup, cfg *agentuti
 		case <-ctx.Done():
 			tickerPoll.Stop()
 			log.Info().Msg("stopped collectWorker Runtime")
-			wg.Done()
+			cfg.Wg.Done()
 			return
 		}
 	}
@@ -150,7 +150,7 @@ func ReadSystemeMetrics(repo *MetricRepo) {
 	}
 }
 
-func CollectSystemWorker(ctx context.Context, wg *sync.WaitGroup, cfg *agentutils.AgentConfig, repo *MetricRepo) {
+func CollectSystemWorker(ctx context.Context, cfg *agentutils.AgentConfig, repo *MetricRepo) {
 	tickerPoll := time.NewTicker(cfg.PollInterval)
 	for {
 		select {
@@ -159,7 +159,7 @@ func CollectSystemWorker(ctx context.Context, wg *sync.WaitGroup, cfg *agentutil
 		case <-ctx.Done():
 			tickerPoll.Stop()
 			log.Info().Msg("stopped collectWorker System")
-			wg.Done()
+			cfg.Wg.Done()
 			return
 		}
 	}
@@ -218,7 +218,7 @@ func SendListJSONMetrics(srv string, key string, repo *MetricRepo, client *http.
 	}
 }
 
-func SendWorker(ctx context.Context, wg *sync.WaitGroup, cfg *agentutils.AgentConfig, repo *MetricRepo) {
+func SendWorker(ctx context.Context, cfg *agentutils.AgentConfig, repo *MetricRepo) {
 	tickerReport := time.NewTicker(cfg.ReportInterval)
 	client := &http.Client{}
 	for {
@@ -228,8 +228,13 @@ func SendWorker(ctx context.Context, wg *sync.WaitGroup, cfg *agentutils.AgentCo
 		case <-ctx.Done():
 			tickerReport.Stop()
 			log.Info().Msg("stopped sendWorker")
-			wg.Done()
+			cfg.Wg.Done()
 			return
 		}
 	}
+}
+
+func NewWorker(ctx context.Context, cfg *agentutils.AgentConfig, repo *MetricRepo, worker func(ctx context.Context, cfg *agentutils.AgentConfig, repo *MetricRepo)) {
+	cfg.Wg.Add(1)
+	go worker(ctx, cfg, repo)
 }
