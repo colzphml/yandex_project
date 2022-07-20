@@ -1,18 +1,36 @@
 package metricsagent
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"math/rand"
 	"net/http"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/colzphml/yandex_project/internal/agentutils"
 	"github.com/colzphml/yandex_project/internal/metrics"
 	"github.com/rs/zerolog"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 )
+
+type MetricRepo struct {
+	db map[string]metrics.Metrics
+	mu sync.Mutex
+}
+
+func NewRepo() *MetricRepo {
+	r := MetricRepo{
+		db: make(map[string]metrics.Metrics),
+	}
+	return &r
+}
 
 var log = zerolog.New(agentutils.LogConfig()).With().Timestamp().Str("component", "metricsagent").Logger()
 
@@ -54,28 +72,144 @@ func GetRuntimeMetric(m *runtime.MemStats, fieldName string, fieldType string) (
 	}
 }
 
-func CollectMetrics(metricsDescr map[string]string, runtime *runtime.MemStats, inc int64) map[string]metrics.Metrics {
-	metricsStore := make(map[string]metrics.Metrics)
+func ReadRuntimeMetrics(repo *MetricRepo, metricsDescr map[string]string, runtime *runtime.MemStats, inc int64) {
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
 	for k, v := range metricsDescr {
 		value, err := GetRuntimeMetric(runtime, k, v)
 		if err != nil {
 			log.Error().Err(err).Msg("failed collect metric")
 			continue
 		}
-		metricsStore[k] = value
+		repo.db[k] = value
 	}
 	incMetrics := metrics.Metrics{ID: "PollCount", MType: "counter", Delta: &inc}
-	metricsStore[incMetrics.ID] = incMetrics
+	repo.db[incMetrics.ID] = incMetrics
 	randomValue := rand.Float64()
 	randMetrics := metrics.Metrics{ID: "RandomValue", MType: "gauge", Value: &randomValue}
-	metricsStore[randMetrics.ID] = randMetrics
-	return metricsStore
+	repo.db[randMetrics.ID] = randMetrics
 }
 
-func SendMetrics(srv string, input map[string]metrics.Metrics, client *http.Client) {
+func CollectRuntimeWorker(ctx context.Context, wg *sync.WaitGroup, cfg *agentutils.AgentConfig, repo *MetricRepo) {
+	var runtimeState runtime.MemStats
+	var pollCouter int64
+	tickerPoll := time.NewTicker(cfg.PollInterval)
+	for {
+		select {
+		case <-tickerPoll.C:
+			runtime.ReadMemStats(&runtimeState)
+			ReadRuntimeMetrics(repo, cfg.Metrics, &runtimeState, pollCouter)
+			pollCouter++
+		case <-ctx.Done():
+			tickerPoll.Stop()
+			log.Info().Msg("stopped collectWorker Runtime")
+			wg.Done()
+			return
+		}
+	}
+}
+
+//я не хочу выносить данный метод в metrics.Metrics{} потому что он довольно частный и нужен в одном месте, поэтому вынес в отдельню функцию для метрик на агенте
+func GetVirtualMemoryMetrics() ([]metrics.Metrics, error) {
+	var result []metrics.Metrics
+	vmem, err := mem.VirtualMemory()
+	if err != nil {
+		log.Error().Err(err).Msg("failed get virtual memory")
+		return nil, err
+	}
+	result = append(result, GetTotalMemory(vmem))
+	result = append(result, GetFreeMemory(vmem))
+	return result, nil
+}
+
+func GetTotalMemory(vmem *mem.VirtualMemoryStat) metrics.Metrics {
+	m := metrics.Metrics{}
+	m.ID = "TotalMemory"
+	m.MType = "gauge"
+	valueTotal := float64(vmem.Total)
+	m.Value = &valueTotal
+	return m
+}
+
+func GetFreeMemory(vmem *mem.VirtualMemoryStat) metrics.Metrics {
+	m := metrics.Metrics{}
+	m.ID = "FreeMemory"
+	m.MType = "gauge"
+	valueFree := float64(vmem.Free)
+	m.Value = &valueFree
+	return m
+}
+
+//получение метрик по ЦПУ
+func GetCPUMetrics() ([]metrics.Metrics, error) {
+	var result []metrics.Metrics
+	totalCPU, err := cpu.Counts(true)
+	if err != nil {
+		log.Error().Err(err).Msg("failed get total cpu count")
+		//в предыдуущей версии я делал здесь return,
+		//а в virtual memory не делал потому что если не найдется total cpu или не вернется значение утилизации - нужно завершить функцию,
+		// а если не найдется memory можно еще попытаться собрать ЦПУ
+		return nil, err
+	}
+	CPUutil, err := cpu.Percent(0, true)
+	if err != nil {
+		log.Error().Err(err).Msg("failed get cpu util")
+		return nil, err
+	}
+	for i := 1; i <= totalCPU; i++ {
+		m := metrics.Metrics{}
+		m.ID = "CPUutilization" + strconv.Itoa(i)
+		m.MType = "gauge"
+		value := CPUutil[i-1]
+		m.Value = &value
+		result = append(result, m)
+	}
+	return result, nil
+}
+
+func ReadSystemeMetrics(repo *MetricRepo) {
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
+	virtualmemory, err := GetVirtualMemoryMetrics()
+	if err != nil {
+		log.Error().Err(err)
+		//я специально не делаю return здесь, потому что если не получилось собрать метрики по памяти, не значит что не стоит попытаться собрать по ЦПУ
+	} else {
+		for _, v := range virtualmemory {
+			repo.db[v.ID] = v
+		}
+	}
+	cpumetrics, err := GetCPUMetrics()
+	if err != nil {
+		log.Error().Err(err)
+		return
+	}
+	for _, v := range cpumetrics {
+		repo.db[v.ID] = v
+	}
+}
+
+func CollectSystemWorker(ctx context.Context, wg *sync.WaitGroup, cfg *agentutils.AgentConfig, repo *MetricRepo) {
+	tickerPoll := time.NewTicker(cfg.PollInterval)
+	for {
+		select {
+		case <-tickerPoll.C:
+			ReadSystemeMetrics(repo)
+		case <-ctx.Done():
+			tickerPoll.Stop()
+			log.Info().Msg("stopped collectWorker System")
+			wg.Done()
+			return
+		}
+	}
+}
+
+func SendMetrics(srv string, repo *MetricRepo, client *http.Client) {
 	var urlPrefix, urlPart string
 	urlPrefix = "http://" + srv
-	for k, v := range input {
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
+	for k, v := range repo.db {
 		urlPart = "/update/" + v.MType + "/" + k + "/" + v.ValueString()
 		err := agentutils.HTTPSend(client, urlPrefix+urlPart)
 		if err != nil {
@@ -85,9 +219,11 @@ func SendMetrics(srv string, input map[string]metrics.Metrics, client *http.Clie
 	}
 }
 
-func SendJSONMetrics(srv string, key string, input map[string]metrics.Metrics, client *http.Client) {
+func SendJSONMetrics(srv string, key string, repo *MetricRepo, client *http.Client) {
 	urlPrefix := "http://" + srv + "/update/"
-	for _, v := range input {
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
+	for _, v := range repo.db {
 		v.FillHash(key)
 		postBody, err := json.Marshal(v)
 		if err != nil {
@@ -102,10 +238,12 @@ func SendJSONMetrics(srv string, key string, input map[string]metrics.Metrics, c
 	}
 }
 
-func SendListJSONMetrics(srv string, key string, input map[string]metrics.Metrics, client *http.Client) {
+func SendListJSONMetrics(srv string, key string, repo *MetricRepo, client *http.Client) {
 	urlPrefix := "http://" + srv + "/updates/"
 	var list []metrics.Metrics
-	for _, v := range input {
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
+	for _, v := range repo.db {
 		v.FillHash(key)
 		list = append(list, v)
 	}
@@ -116,5 +254,21 @@ func SendListJSONMetrics(srv string, key string, input map[string]metrics.Metric
 	err = agentutils.HTTPSendJSON(client, urlPrefix, postBody)
 	if err != nil {
 		log.Error().Err(err).Msg("failed send with body (list)")
+	}
+}
+
+func SendWorker(ctx context.Context, wg *sync.WaitGroup, cfg *agentutils.AgentConfig, repo *MetricRepo) {
+	tickerReport := time.NewTicker(cfg.ReportInterval)
+	client := &http.Client{}
+	for {
+		select {
+		case <-tickerReport.C:
+			SendListJSONMetrics(cfg.ServerAddress, cfg.Key, repo, client)
+		case <-ctx.Done():
+			tickerReport.Stop()
+			log.Info().Msg("stopped sendWorker")
+			wg.Done()
+			return
+		}
 	}
 }

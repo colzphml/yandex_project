@@ -1,16 +1,16 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"math/rand"
-	"net/http"
 	"os"
 	"os/signal"
-	"runtime"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/colzphml/yandex_project/internal/agentutils"
-	"github.com/colzphml/yandex_project/internal/metrics"
 	"github.com/colzphml/yandex_project/internal/metrics/metricsagent"
 	"github.com/rs/zerolog"
 )
@@ -18,41 +18,24 @@ import (
 var log = zerolog.New(agentutils.LogConfig()).With().Timestamp().Str("component", "agent").Logger()
 
 func main() {
+	log.Info().Msg("agent started")
+	now := time.Now()
 	//read config file
 	cfg := agentutils.LoadAgentConfig()
-	//variables for collected data
-	var runtimeState runtime.MemStats
-	metricsStore := make(map[string]metrics.Metrics)
+	wg := &sync.WaitGroup{}
+	metricsStore := metricsagent.NewRepo()
 	//for close programm by signal
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
-	//for additional metric PollCount
-	var pollCouter int64
 	//for additional metric RandomValue
 	rand.Seed(time.Now().UnixNano())
-	//schedule ticker
-	tickerPoll := time.NewTicker(cfg.PollInterval)
-	tickerReport := time.NewTicker(cfg.ReportInterval)
-	//client for send
-	client := &http.Client{}
-Loop:
-	for {
-		select {
-		case <-tickerPoll.C:
-			runtime.ReadMemStats(&runtimeState)
-			metricsStore = metricsagent.CollectMetrics(cfg.Metrics, &runtimeState, pollCouter)
-			pollCouter++
-		case <-tickerReport.C:
-			//send by url
-			//metrics.SendMetrics(cfg.ServerAddress, metricsStore, client)
-			//send by json
-			//metrics.SendJSONMetrics(cfg.ServerAddress, cfg.Key, metricsStore, client)
-			metricsagent.SendListJSONMetrics(cfg.ServerAddress, cfg.Key, metricsStore, client)
-		case <-sigChan:
-			tickerPoll.Stop()
-			tickerReport.Stop()
-			log.Info().Msg("initialize table")
-			break Loop
-		}
-	}
+	ctx, cancel := context.WithCancel(context.Background())
+	wg.Add(3)
+	go metricsagent.CollectRuntimeWorker(ctx, wg, cfg, metricsStore)
+	go metricsagent.CollectSystemWorker(ctx, wg, cfg, metricsStore)
+	go metricsagent.SendWorker(ctx, wg, cfg, metricsStore)
+	<-sigChan
+	cancel()
+	wg.Wait()
+	log.Info().Msg(fmt.Sprintf("agent stopped after %v seconds of work", time.Since(now).Seconds()))
 }

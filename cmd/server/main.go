@@ -13,8 +13,8 @@ import (
 	mdw "github.com/colzphml/yandex_project/internal/middleware"
 	"github.com/colzphml/yandex_project/internal/serverutils"
 	"github.com/colzphml/yandex_project/internal/storage"
-	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rs/zerolog"
 )
 
@@ -48,7 +48,7 @@ func HTTPServer(ctx context.Context, cfg *serverutils.ServerConfig, repo storage
 }
 
 func main() {
-	log.Info().Msg("Hello World")
+	log.Info().Msg("server started")
 	cfg := serverutils.LoadServerConfig()
 	log.Info().Dict("cfg", zerolog.Dict().
 		Str("ServerAddress", cfg.ServerAddress).
