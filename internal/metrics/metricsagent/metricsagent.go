@@ -109,44 +109,83 @@ func CollectRuntimeWorker(ctx context.Context, wg *sync.WaitGroup, cfg *agentuti
 	}
 }
 
-func ReadSystemeMetrics(repo *MetricRepo) {
-	repo.mu.Lock()
-	defer repo.mu.Unlock()
+//я не хочу выносить данный метод в metrics.Metrics{} потому что он довольно частный и нужен в одном месте, поэтому вынес в отдельню функцию для метрик на агенте
+func GetVirtualMemoryMetrics() ([]metrics.Metrics, error) {
+	var result []metrics.Metrics
 	vmem, err := mem.VirtualMemory()
-	m := metrics.Metrics{}
 	if err != nil {
 		log.Error().Err(err).Msg("failed get virtual memory")
-	} else {
-		m := metrics.Metrics{}
-		m.ID = "TotalMemory"
-		m.MType = "gauge"
-		valueTotal := float64(vmem.Total)
-		m.Value = &valueTotal
-		repo.db[m.ID] = m
-		m = metrics.Metrics{}
-		m.ID = "FreeMemory"
-		m.MType = "gauge"
-		valueFree := float64(vmem.Free)
-		m.Value = &valueFree
-		repo.db[m.ID] = m
+		return nil, err
 	}
+	result = append(result, GetTotalMemory(vmem))
+	result = append(result, GetFreeMemory(vmem))
+	return result, nil
+}
+
+func GetTotalMemory(vmem *mem.VirtualMemoryStat) metrics.Metrics {
+	m := metrics.Metrics{}
+	m.ID = "TotalMemory"
+	m.MType = "gauge"
+	valueTotal := float64(vmem.Total)
+	m.Value = &valueTotal
+	return m
+}
+
+func GetFreeMemory(vmem *mem.VirtualMemoryStat) metrics.Metrics {
+	m := metrics.Metrics{}
+	m.ID = "FreeMemory"
+	m.MType = "gauge"
+	valueFree := float64(vmem.Free)
+	m.Value = &valueFree
+	return m
+}
+
+//получение метрик по ЦПУ
+func GetCPUMetrics() ([]metrics.Metrics, error) {
+	var result []metrics.Metrics
 	totalCPU, err := cpu.Counts(true)
 	if err != nil {
 		log.Error().Err(err).Msg("failed get total cpu count")
-		return
+		//в предыдуущей версии я делал здесь return,
+		//а в virtual memory не делал потому что если не найдется total cpu или не вернется значение утилизации - нужно завершить функцию,
+		// а если не найдется memory можно еще попытаться собрать ЦПУ
+		return nil, err
 	}
 	CPUutil, err := cpu.Percent(0, true)
 	if err != nil {
 		log.Error().Err(err).Msg("failed get cpu util")
-		return
+		return nil, err
 	}
 	for i := 1; i <= totalCPU; i++ {
-		m = metrics.Metrics{}
+		m := metrics.Metrics{}
 		m.ID = "CPUutilization" + strconv.Itoa(i)
 		m.MType = "gauge"
 		value := CPUutil[i-1]
 		m.Value = &value
-		repo.db[m.ID] = m
+		result = append(result, m)
+	}
+	return result, nil
+}
+
+func ReadSystemeMetrics(repo *MetricRepo) {
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
+	virtualmemory, err := GetVirtualMemoryMetrics()
+	if err != nil {
+		log.Error().Err(err)
+		//я специально не делаю return здесь, потому что если не получилось собрать метрики по памяти, не значит что не стоит попытаться собрать по ЦПУ
+	} else {
+		for _, v := range virtualmemory {
+			repo.db[v.ID] = v
+		}
+	}
+	cpumetrics, err := GetCPUMetrics()
+	if err != nil {
+		log.Error().Err(err)
+		return
+	}
+	for _, v := range cpumetrics {
+		repo.db[v.ID] = v
 	}
 }
 
