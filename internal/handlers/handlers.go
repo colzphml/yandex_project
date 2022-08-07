@@ -57,12 +57,15 @@ func SaveHandler(ctx context.Context, repo storage.Repositorier, cfg *serverutil
 
 func SaveJSONHandler(ctx context.Context, repo storage.Repositorier, cfg *serverutils.ServerConfig) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
-		body, err := serverutils.CheckGZIP(r)
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		defer body.Close()
+		/*
+			body, err := serverutils.CheckGZIP(r)
+			if err != nil {
+				http.Error(rw, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			defer body.Close()
+		*/
+		body := r.Body
 		var m metrics.Metrics
 		if err := json.NewDecoder(body).Decode(&m); err != nil {
 			http.Error(rw, "can't decode metric: "+r.URL.Path, http.StatusBadRequest)
@@ -99,12 +102,15 @@ func SaveJSONHandler(ctx context.Context, repo storage.Repositorier, cfg *server
 
 func SaveJSONArrayHandler(ctx context.Context, repo storage.Repositorier, cfg *serverutils.ServerConfig) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
-		body, err := serverutils.CheckGZIP(r)
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		defer body.Close()
+		/*
+			body, err := serverutils.CheckGZIP(r)
+			if err != nil {
+				http.Error(rw, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			defer body.Close()
+		*/
+		body := r.Body
 		var m []metrics.Metrics
 		if err := json.NewDecoder(body).Decode(&m); err != nil {
 			http.Error(rw, "can't decode metric: "+r.URL.Path, http.StatusBadRequest)
