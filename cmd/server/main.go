@@ -10,7 +10,7 @@ import (
 
 	"github.com/colzphml/yandex_project/internal/handlers"
 	//"middleware" используется в 2 пакетах, потому для собственного алиас
-	mdw "github.com/colzphml/yandex_project/internal/middleware"
+
 	"github.com/colzphml/yandex_project/internal/serverutils"
 	"github.com/colzphml/yandex_project/internal/storage"
 	"github.com/go-chi/chi/v5"
@@ -23,8 +23,9 @@ var log = zerolog.New(serverutils.LogConfig()).With().Timestamp().Str("component
 //вынес в отдельную функцию создание сервера
 func HTTPServer(ctx context.Context, cfg *serverutils.ServerConfig, repo storage.Repositorier) *http.Server {
 	r := chi.NewRouter()
-	r.Use(mdw.GzipHandle)
+	//r.Use(mdw.GzipHandle)
 	//r.Use(mdw.GzipRequest)
+	r.Use(middleware.Compress(5))
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
