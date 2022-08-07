@@ -24,7 +24,7 @@ var log = zerolog.New(serverutils.LogConfig()).With().Timestamp().Str("component
 func HTTPServer(ctx context.Context, cfg *serverutils.ServerConfig, repo storage.Repositorier) *http.Server {
 	r := chi.NewRouter()
 	r.Use(mdw.GzipHandle)
-	r.Use(mdw.GzipRequest)
+	//r.Use(mdw.GzipRequest)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
