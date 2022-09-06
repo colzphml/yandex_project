@@ -57,18 +57,11 @@ func SaveHandler(ctx context.Context, repo storage.Repositorier, cfg *serverutil
 
 func SaveJSONHandler(ctx context.Context, repo storage.Repositorier, cfg *serverutils.ServerConfig) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
-		body, err := serverutils.CheckGZIP(r)
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		defer body.Close()
 		var m metrics.Metrics
-		if err := json.NewDecoder(body).Decode(&m); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
 			http.Error(rw, "can't decode metric: "+r.URL.Path, http.StatusBadRequest)
 			return
 		}
-		body.Close()
 		compareHash, err := m.CompareHash(cfg.Key)
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
@@ -99,14 +92,8 @@ func SaveJSONHandler(ctx context.Context, repo storage.Repositorier, cfg *server
 
 func SaveJSONArrayHandler(ctx context.Context, repo storage.Repositorier, cfg *serverutils.ServerConfig) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
-		body, err := serverutils.CheckGZIP(r)
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		defer body.Close()
 		var m []metrics.Metrics
-		if err := json.NewDecoder(body).Decode(&m); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
 			http.Error(rw, "can't decode metric: "+r.URL.Path, http.StatusBadRequest)
 			return
 		}
@@ -176,17 +163,11 @@ func GetValueHandler(ctx context.Context, repo storage.Repositorier) http.Handle
 
 func GetJSONValueHandler(ctx context.Context, repo storage.Repositorier, cfg *serverutils.ServerConfig) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
-		body, err := serverutils.CheckGZIP(r)
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusInternalServerError)
-			return
-		}
 		var m metrics.Metrics
-		if err := json.NewDecoder(body).Decode(&m); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
 			http.Error(rw, "can't decode metric: "+r.URL.Path, http.StatusBadRequest)
 			return
 		}
-		body.Close()
 		metricValue, err := repo.GetValue(ctx, m.ID)
 		if err != nil {
 			http.Error(rw, err.Error()+" "+m.ID, http.StatusNotFound)
