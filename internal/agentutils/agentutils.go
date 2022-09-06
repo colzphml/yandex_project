@@ -40,7 +40,7 @@ func (cfg *AgentConfig) yamlRead(file string) {
 func (cfg *AgentConfig) envRead() {
 	err := env.Parse(cfg)
 	if err != nil {
-		log.Error().Err(err).Msg("cannot read eenvironment variables")
+		log.Error().Err(err).Msg("cannot read environment variables")
 	}
 }
 
