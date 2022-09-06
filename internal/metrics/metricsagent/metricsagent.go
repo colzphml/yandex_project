@@ -109,7 +109,6 @@ func CollectRuntimeWorker(ctx context.Context, wg *sync.WaitGroup, cfg *agentuti
 	}
 }
 
-//я не хочу выносить данный метод в metrics.Metrics{} потому что он довольно частный и нужен в одном месте, поэтому вынес в отдельню функцию для метрик на агенте
 func GetVirtualMemoryMetrics() ([]metrics.Metrics, error) {
 	var result []metrics.Metrics
 	vmem, err := mem.VirtualMemory()
@@ -140,15 +139,11 @@ func GetFreeMemory(vmem *mem.VirtualMemoryStat) metrics.Metrics {
 	return m
 }
 
-//получение метрик по ЦПУ
 func GetCPUMetrics() ([]metrics.Metrics, error) {
 	var result []metrics.Metrics
 	totalCPU, err := cpu.Counts(true)
 	if err != nil {
 		log.Error().Err(err).Msg("failed get total cpu count")
-		//в предыдуущей версии я делал здесь return,
-		//а в virtual memory не делал потому что если не найдется total cpu или не вернется значение утилизации - нужно завершить функцию,
-		// а если не найдется memory можно еще попытаться собрать ЦПУ
 		return nil, err
 	}
 	CPUutil, err := cpu.Percent(0, true)
@@ -173,7 +168,6 @@ func ReadSystemeMetrics(repo *MetricRepo) {
 	virtualmemory, err := GetVirtualMemoryMetrics()
 	if err != nil {
 		log.Error().Err(err)
-		//я специально не делаю return здесь, потому что если не получилось собрать метрики по памяти, не значит что не стоит попытаться собрать по ЦПУ
 	} else {
 		for _, v := range virtualmemory {
 			repo.db[v.ID] = v

@@ -2,6 +2,7 @@ package dbrepo
 
 import (
 	"context"
+	"embed"
 	"errors"
 	"sort"
 
@@ -14,15 +15,8 @@ import (
 
 var log = zerolog.New(serverutils.LogConfig()).With().Timestamp().Str("component", "dbrepo").Logger()
 
-var (
-	SQLCreateTable        = "CREATE TABLE IF NOT EXISTS public.metrics (id varchar(50) NOT NULL,mtype varchar(50) NULL,delta int8 NULL,value float8 NULL,CONSTRAINT metrics_pkey PRIMARY KEY (id));"
-	SQLTruncateTable      = "TRUNCATE TABLE public.metrics"
-	SQLInsertGaugeValue   = "insert into metrics (id, mtype , value) values ($1,'gauge', $2) on conflict (id) do update set value = EXCLUDED.value"
-	SQLInsertCounterValue = "insert into metrics (id, mtype , delta) values ($1,'counter', $2) on conflict (id) do update set delta = EXCLUDED.delta + metrics.delta"
-	SQLSelectValueType    = "SELECT mtype FROM public.metrics where id = $1"
-	SQLSelectValue        = "SELECT id, mtype, value, delta FROM public.metrics where id = $1"
-	SQLSelectAllValues    = "SELECT id, mtype, value, delta FROM  public.metrics"
-)
+//go:embed sql/*.sql
+var SQL embed.FS
 
 type MetricRepo struct {
 	Pool *pgxpool.Pool
@@ -35,13 +29,23 @@ func NewMetricRepo(ctx context.Context, cfg *serverutils.ServerConfig) (*MetricR
 		return nil, err
 	}
 	repo.Pool = dbpool
-	ct, err := repo.Pool.Exec(ctx, SQLCreateTable)
+	sqlBytes, err := SQL.ReadFile("sql/SQLCreateTable.sql")
+	if err != nil {
+		return nil, err
+	}
+	sqlQuery := string(sqlBytes)
+	ct, err := repo.Pool.Exec(ctx, sqlQuery)
 	if err != nil {
 		return nil, err
 	}
 	log.Info().Str("initialize table", ct.String())
 	if !cfg.Restore {
-		_, err = repo.Pool.Exec(ctx, SQLTruncateTable)
+		sqlBytes, err = SQL.ReadFile("sql/SQLTruncateTable.sql")
+		if err != nil {
+			return nil, err
+		}
+		sqlQuery = string(sqlBytes)
+		_, err = repo.Pool.Exec(ctx, sqlQuery)
 		if err != nil {
 			return nil, err
 		}
@@ -49,7 +53,7 @@ func NewMetricRepo(ctx context.Context, cfg *serverutils.ServerConfig) (*MetricR
 	return repo, nil
 }
 
-//этот метод не используется для варианта с ДБ
+// этот метод не используется для варианта с ДБ
 func (m *MetricRepo) DumpMetrics(ctx context.Context, cfg *serverutils.ServerConfig) error {
 	return nil
 }
@@ -64,8 +68,13 @@ func (m *MetricRepo) Ping(ctx context.Context) error {
 
 func (m *MetricRepo) SaveMetric(ctx context.Context, metric metrics.Metrics) error {
 	var oldValue string
-	row := m.Pool.QueryRow(ctx, SQLSelectValueType, metric.ID)
-	err := row.Scan(&oldValue)
+	sqlBytes, err := SQL.ReadFile("sql/SQLSelectValueType.sql")
+	if err != nil {
+		return err
+	}
+	sqlQuery := string(sqlBytes)
+	row := m.Pool.QueryRow(ctx, sqlQuery, metric.ID)
+	err = row.Scan(&oldValue)
 	if err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) {
 			return err
@@ -77,12 +86,22 @@ func (m *MetricRepo) SaveMetric(ctx context.Context, metric metrics.Metrics) err
 	}
 	switch metric.MType {
 	case "gauge":
-		_, err := m.Pool.Exec(ctx, SQLInsertGaugeValue, metric.ID, metric.Value)
+		sqlBytes, err = SQL.ReadFile("sql/SQLInsertGaugeValue.sql")
+		if err != nil {
+			return err
+		}
+		sqlQuery = string(sqlBytes)
+		_, err := m.Pool.Exec(ctx, sqlQuery, metric.ID, metric.Value)
 		if err != nil {
 			return err
 		}
 	case "counter":
-		_, err := m.Pool.Exec(ctx, SQLInsertCounterValue, metric.ID, metric.Delta)
+		sqlBytes, err = SQL.ReadFile("sql/SQLInsertCounterValue.sql")
+		if err != nil {
+			return err
+		}
+		sqlQuery = string(sqlBytes)
+		_, err := m.Pool.Exec(ctx, sqlQuery, metric.ID, metric.Delta)
 		if err != nil {
 			return err
 		}
@@ -98,8 +117,13 @@ func (m *MetricRepo) SaveListMetric(ctx context.Context, metricarray []metrics.M
 	}
 	for _, metric := range metricarray {
 		var oldValue string
-		row := tx.QueryRow(ctx, SQLSelectValueType, metric.ID)
-		err := row.Scan(&oldValue)
+		sqlBytes, err := SQL.ReadFile("sql/SQLSelectValueType.sql")
+		if err != nil {
+			return 0, err
+		}
+		sqlQuery := string(sqlBytes)
+		row := tx.QueryRow(ctx, sqlQuery, metric.ID)
+		err = row.Scan(&oldValue)
 		if err != nil {
 			if !errors.Is(err, pgx.ErrNoRows) {
 				log.Error().Err(err).Msg("failed get previous value")
@@ -113,13 +137,23 @@ func (m *MetricRepo) SaveListMetric(ctx context.Context, metricarray []metrics.M
 		}
 		switch metric.MType {
 		case "gauge":
-			_, err := tx.Exec(ctx, SQLInsertGaugeValue, metric.ID, metric.Value)
+			sqlBytes, err := SQL.ReadFile("sql/SQLInsertGaugeValue.sql")
+			if err != nil {
+				return 0, err
+			}
+			sqlQuery := string(sqlBytes)
+			_, err = tx.Exec(ctx, sqlQuery, metric.ID, metric.Value)
 			if err != nil {
 				log.Error().Err(err).Msg("failed update gauge metric")
 				continue
 			}
 		case "counter":
-			_, err := tx.Exec(ctx, SQLInsertCounterValue, metric.ID, metric.Delta)
+			sqlBytes, err := SQL.ReadFile("sql/SQLInsertCounterValue.sql")
+			if err != nil {
+				return 0, err
+			}
+			sqlQuery := string(sqlBytes)
+			_, err = tx.Exec(ctx, sqlQuery, metric.ID, metric.Delta)
 			if err != nil {
 				log.Error().Err(err).Msg("failed update counter metric")
 				continue
@@ -136,7 +170,12 @@ func (m *MetricRepo) SaveListMetric(ctx context.Context, metricarray []metrics.M
 
 func (m *MetricRepo) ListMetrics(ctx context.Context) []string {
 	var list []string
-	rows, err := m.Pool.Query(ctx, SQLSelectAllValues)
+	sqlBytes, err := SQL.ReadFile("sql/SQLSelectAllValues.sql")
+	if err != nil {
+		return nil
+	}
+	sqlQuery := string(sqlBytes)
+	rows, err := m.Pool.Query(ctx, sqlQuery)
 	if err != nil {
 		return list
 	}
@@ -162,8 +201,13 @@ func (m *MetricRepo) ListMetrics(ctx context.Context) []string {
 
 func (m *MetricRepo) GetValue(ctx context.Context, metricName string) (metrics.Metrics, error) {
 	var metric metrics.Metrics
-	row := m.Pool.QueryRow(ctx, SQLSelectValue, metricName)
-	err := row.Scan(&metric.ID, &metric.MType, &metric.Value, &metric.Delta)
+	sqlBytes, err := SQL.ReadFile("sql/SQLSelectValue.sql")
+	if err != nil {
+		return metrics.Metrics{}, err
+	}
+	sqlQuery := string(sqlBytes)
+	row := m.Pool.QueryRow(ctx, sqlQuery, metricName)
+	err = row.Scan(&metric.ID, &metric.MType, &metric.Value, &metric.Delta)
 	if err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) {
 			return metrics.Metrics{}, err
