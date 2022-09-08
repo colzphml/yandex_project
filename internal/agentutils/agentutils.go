@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	_ "net/http/pprof"
-
 	"github.com/caarlos0/env"
 	"github.com/rs/zerolog"
 	"gopkg.in/yaml.v3"
