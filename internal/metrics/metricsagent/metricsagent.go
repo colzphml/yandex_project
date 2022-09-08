@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	_ "net/http/pprof"
+
 	"github.com/colzphml/yandex_project/internal/agentutils"
 	"github.com/colzphml/yandex_project/internal/metrics"
 	"github.com/rs/zerolog"
