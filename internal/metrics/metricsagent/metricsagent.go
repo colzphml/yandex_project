@@ -162,7 +162,7 @@ func GetCPUMetrics() ([]metrics.Metrics, error) {
 	return result, nil
 }
 
-func ReadSystemeMetrics(repo *MetricRepo) {
+func ReadSystemMetrics(repo *MetricRepo) {
 	repo.mu.Lock()
 	defer repo.mu.Unlock()
 	virtualmemory, err := GetVirtualMemoryMetrics()
@@ -188,7 +188,7 @@ func CollectSystemWorker(ctx context.Context, wg *sync.WaitGroup, cfg *agentutil
 	for {
 		select {
 		case <-tickerPoll.C:
-			ReadSystemeMetrics(repo)
+			ReadSystemMetrics(repo)
 		case <-ctx.Done():
 			tickerPoll.Stop()
 			log.Info().Msg("stopped collectWorker System")

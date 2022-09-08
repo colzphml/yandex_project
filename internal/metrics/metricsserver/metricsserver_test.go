@@ -1,7 +1,10 @@
 package metricsserver
 
 import (
+	"math/rand"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/colzphml/yandex_project/internal/metrics"
 	"github.com/stretchr/testify/assert"
@@ -171,4 +174,65 @@ func TestNewValue(t *testing.T) {
 			}
 		})
 	}
+}
+
+func BenchmarkConvertToMetric(b *testing.B) {
+	r := []string{
+		"gauge",
+		"counter",
+	}
+	rand.Seed(time.Now().UnixNano())
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		//почему то не работает запуск таймера, программа зависает...
+		//UPD похоже из-за частого запуска таймера...
+		//b.StopTimer()
+		mtype := r[rand.Intn(2)]
+		switch mtype {
+		case "gauge":
+			value := rand.Float64()
+			valuestr := strconv.FormatFloat(value, 'g', -1, 64)
+			//b.StartTimer()
+			ConvertToMetric("test", mtype, valuestr)
+		case "counter":
+			value := rand.Int63()
+			valuestr := strconv.FormatInt(value, 10)
+			//b.StartTimer()
+			ConvertToMetric("test", mtype, valuestr)
+		}
+	}
+}
+
+func BenchmarkNewValue(b *testing.B) {
+	oldValue := metrics.Metrics{
+		ID: "test",
+	}
+	newValue := metrics.Metrics{
+		ID: "test",
+	}
+	rand.Seed(time.Now().UnixNano())
+	valueOldFloat := rand.Float64()
+	oldValue.MType = "gauge"
+	oldValue.Value = &valueOldFloat
+	valueNewFloat := rand.Float64()
+	newValue.MType = "gauge"
+	newValue.Value = &valueNewFloat
+	b.ResetTimer()
+	b.Run("gauge", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			NewValue(oldValue, newValue)
+		}
+	})
+	valueOldInt := rand.Int63()
+	oldValue.MType = "counter"
+	oldValue.Delta = &valueOldInt
+	valueNewInt := rand.Int63()
+	newValue.MType = "counter"
+	newValue.Delta = &valueNewInt
+	b.ResetTimer()
+	b.Run("counter", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			NewValue(oldValue, newValue)
+		}
+	})
 }
