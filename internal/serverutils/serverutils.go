@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
@@ -29,7 +28,7 @@ type ServerConfig struct {
 }
 
 func (cfg *ServerConfig) yamlRead(file string) {
-	yfile, err := ioutil.ReadFile(file)
+	yfile, err := os.ReadFile(file)
 	if err != nil {
 		log.Error().Err(err).Msg("file open trouble")
 	} else {
@@ -47,7 +46,6 @@ func (cfg *ServerConfig) envRead() {
 	}
 }
 
-//можно ли задавать "обязательные/критичные для сервиса" флаги?
 func (cfg *ServerConfig) flagsRead() {
 	flag.Func("a", "server address like <server>:<port>, example: -a \"127.0.0.1:8080\"", func(flagValue string) error {
 		if flagValue != "" {

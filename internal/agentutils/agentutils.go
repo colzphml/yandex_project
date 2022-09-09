@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -26,7 +25,7 @@ type AgentConfig struct {
 }
 
 func (cfg *AgentConfig) yamlRead(file string) {
-	yfile, err := ioutil.ReadFile(file)
+	yfile, err := os.ReadFile(file)
 	if err != nil {
 		log.Error().Err(err).Msg("cannot open yaml file")
 	} else {

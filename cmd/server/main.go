@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -51,9 +50,11 @@ func HTTPServer(ctx context.Context, cfg *serverutils.ServerConfig, repo storage
 }
 
 func main() {
-	go func() {
-		fmt.Println(http.ListenAndServe("localhost:6061", nil))
-	}()
+	/*
+		go func() {
+			fmt.Println(http.ListenAndServe("localhost:6061", nil))
+		}()
+	*/
 	log.Info().Msg("server started")
 	cfg := serverutils.LoadServerConfig()
 	log.Info().Dict("cfg", zerolog.Dict().

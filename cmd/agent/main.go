@@ -4,14 +4,12 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 	"time"
-
-	"net/http"
-	_ "net/http/pprof"
 
 	"github.com/colzphml/yandex_project/internal/agentutils"
 	"github.com/colzphml/yandex_project/internal/metrics/metricsagent"
@@ -21,9 +19,11 @@ import (
 var log = zerolog.New(agentutils.LogConfig()).With().Timestamp().Str("component", "agent").Logger()
 
 func main() {
-	go func() {
-		fmt.Println(http.ListenAndServe("localhost:6060", nil))
-	}()
+	/*
+		go func() {
+			fmt.Println(http.ListenAndServe("localhost:6060", nil))
+		}()
+	*/
 	log.Info().Msg("agent started")
 	now := time.Now()
 	//read config file
