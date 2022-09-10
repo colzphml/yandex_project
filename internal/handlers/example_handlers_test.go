@@ -2,11 +2,19 @@ package handlers_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+
+	"github.com/colzphml/yandex_project/internal/handlers"
+	mdw "github.com/colzphml/yandex_project/internal/middleware"
+	"github.com/colzphml/yandex_project/internal/serverutils"
+	"github.com/colzphml/yandex_project/internal/storage"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 type Metrics struct {
@@ -72,10 +80,47 @@ func HTTPSendJSON(client *http.Client, url string, postBody []byte) ([]byte, err
 	return rb, nil
 }
 
+func HTTPServer(ctx context.Context, cfg *serverutils.ServerConfig, repo storage.Repositorier) *http.Server {
+	r := chi.NewRouter()
+	r.Use(mdw.GzipHandle)
+	r.Use(middleware.RequestID)
+	r.Use(middleware.RealIP)
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+	r.Post("/update/{metric_type}/{metric_name}/{metric_value}", handlers.SaveHandler(ctx, repo, cfg))
+	r.Get("/value/{metric_type}/{metric_name}", handlers.GetValueHandler(ctx, repo))
+	r.Post("/update/", handlers.SaveJSONHandler(ctx, repo, cfg))
+	r.Post("/updates/", handlers.SaveJSONArrayHandler(ctx, repo, cfg))
+	r.Post("/value/", handlers.GetJSONValueHandler(ctx, repo, cfg))
+	r.Get("/ping", handlers.PingHandler(ctx, repo, cfg))
+	r.Get("/", handlers.ListMetricsHandler(ctx, repo, cfg))
+	srv := &http.Server{
+		Addr:    cfg.ServerAddress,
+		Handler: r,
+	}
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatal(err)
+		}
+	}()
+	return srv
+}
+
+func InitializeApp() {
+	cfg := serverutils.LoadServerConfig()
+	ctx := context.Background()
+	repo, _, err := storage.CreateRepo(ctx, cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	HTTPServer(ctx, cfg, repo)
+}
+
 func Example() {
+	InitializeApp()
+
 	var m []Metrics
-	client := &http.Client{}
-	var value float64 = 77.7
+	var value = 77.7
 	m1 := Metrics{
 		ID:    "Custom1",
 		MType: "gauge",
@@ -87,6 +132,8 @@ func Example() {
 		Value: &value,
 	}
 	m = append(m, m1, m2)
+
+	client := &http.Client{}
 
 	// Send one metric via URL
 	url := "http://localhost:8080/update/gauge/Custom3/77.7"

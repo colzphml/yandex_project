@@ -108,7 +108,7 @@ func LoadServerConfig() *ServerConfig {
 		ServerAddress: "127.0.0.1:8080",
 		StoreInterval: time.Duration(300 * time.Second),
 		StoreFile:     "./tmp/devops-metrics-db.json",
-		Restore:       true,
+		Restore:       false,
 		Key:           "",
 	}
 	//yaml config
