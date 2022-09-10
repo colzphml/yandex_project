@@ -13,17 +13,17 @@ func BenchmarkGetRuntimeMetric(b *testing.B) {
 	var runtimeState runtime.MemStats
 	b.Run("Alloc", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			GetRuntimeMetric(&runtimeState, "Alloc", "gauge")
+			getRuntimeMetric(&runtimeState, "Alloc", "gauge")
 		}
 	})
 	b.Run("NextGC", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			GetRuntimeMetric(&runtimeState, "NextGC", "gauge")
+			getRuntimeMetric(&runtimeState, "NextGC", "gauge")
 		}
 	})
 	b.Run("HeapInuse", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			GetRuntimeMetric(&runtimeState, "HeapInuse", "gauge")
+			getRuntimeMetric(&runtimeState, "HeapInuse", "gauge")
 		}
 	})
 
@@ -70,21 +70,21 @@ func (suite *MetricsAgentSuite) SetupTest() {
 	suite.repo = NewRepo()
 }
 
-func (suite *MetricsAgentSuite) TestGetRuntimeMetricAlloc() {
-	m, err := GetRuntimeMetric(suite.runtime, "Alloc", suite.metricsDescr["Alloc"])
+func (suite *MetricsAgentSuite) TestgetRuntimeMetricAlloc() {
+	m, err := getRuntimeMetric(suite.runtime, "Alloc", suite.metricsDescr["Alloc"])
 	suite.NoError(err)
 	suite.Equal("Alloc", m.ID)
 	suite.Equal(m.MType, suite.metricsDescr["Alloc"])
 	suite.NotNil(m.Value)
 }
 
-func (suite *MetricsAgentSuite) TestGetRuntimeMetricUnknown() {
-	_, err := GetRuntimeMetric(suite.runtime, "another", "gauge")
+func (suite *MetricsAgentSuite) TestgetRuntimeMetricUnknown() {
+	_, err := getRuntimeMetric(suite.runtime, "another", "gauge")
 	suite.Error(err)
 }
 
-func (suite *MetricsAgentSuite) TestGetRuntimeMetricWrongType() {
-	_, err := GetRuntimeMetric(suite.runtime, "Alloc", "another")
+func (suite *MetricsAgentSuite) TestgetRuntimeMetricWrongType() {
+	_, err := getRuntimeMetric(suite.runtime, "Alloc", "another")
 	suite.Error(err)
 }
 

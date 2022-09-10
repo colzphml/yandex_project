@@ -1,3 +1,4 @@
+// dbrepo - реализация интерфейса Repositorier с использованием Postgres.
 package dbrepo
 
 import (
@@ -15,6 +16,8 @@ import (
 
 var log = zerolog.New(serverutils.LogConfig()).With().Timestamp().Str("component", "dbrepo").Logger()
 
+// Файлы SQL хранятся в директории ./sql/
+//
 //go:embed sql/*.sql
 var SQL embed.FS
 

@@ -1,11 +1,10 @@
+// Модуль serverutils содержит в себе методы для работы агента, не зависящие от других модулей агента.
+// Содержит в себе структуру для хранения конфигурации запуска сервера и методы для чтения параметров запуска.
 package serverutils
 
 import (
-	"compress/gzip"
 	"flag"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -18,15 +17,17 @@ import (
 
 var log = zerolog.New(LogConfig()).With().Timestamp().Str("component", "serverutils").Logger()
 
+// ServerConfig - конфигурация сервера для старта.
 type ServerConfig struct {
-	ServerAddress string        `yaml:"ServerAddress" env:"ADDRESS"`
-	StoreInterval time.Duration `yaml:"StoreInterval" env:"STORE_INTERVAL"`
-	StoreFile     string        `yaml:"StoreFile" env:"STORE_FILE"`
-	Restore       bool          `yaml:"Restore" env:"RESTORE"`
-	Key           string        `yaml:"Key" env:"KEY"`
-	DBDSN         string        `yaml:"DBDSN" env:"DATABASE_DSN"`
+	ServerAddress string        `yaml:"ServerAddress" env:"ADDRESS"`        // Адрес, по которому будут доступны endpoints
+	StoreInterval time.Duration `yaml:"StoreInterval" env:"STORE_INTERVAL"` // Интервал сохраниения данных при использовании файла как хранилища
+	StoreFile     string        `yaml:"StoreFile" env:"STORE_FILE"`         // Адрес файла для хранения метрик
+	Restore       bool          `yaml:"Restore" env:"RESTORE"`              // При true - значения метрик в памяти сервера восстановится из хранилища, при false - в памяти будет пустое хранилище
+	Key           string        `yaml:"Key" env:"KEY"`                      // Ключ для подписи данных
+	DBDSN         string        `yaml:"DBDSN" env:"DATABASE_DSN"`           // URL для подключения к Postgres
 }
 
+// yamlRead - считывает yaml-файл конфигурации с названием "server_config.yaml" и заполняет структуру ServerConfig.
 func (cfg *ServerConfig) yamlRead(file string) {
 	yfile, err := os.ReadFile(file)
 	if err != nil {
@@ -39,6 +40,7 @@ func (cfg *ServerConfig) yamlRead(file string) {
 	}
 }
 
+// envRead - считывает переменные окружения и заполняет структуру ServerConfig.
 func (cfg *ServerConfig) envRead() {
 	err := env.Parse(cfg)
 	if err != nil {
@@ -46,6 +48,7 @@ func (cfg *ServerConfig) envRead() {
 	}
 }
 
+// flagsRead - считывает флаги запуска и заполняет структуру ServerConfig.
 func (cfg *ServerConfig) flagsRead() {
 	flag.Func("a", "server address like <server>:<port>, example: -a \"127.0.0.1:8080\"", func(flagValue string) error {
 		if flagValue != "" {
@@ -94,6 +97,11 @@ func (cfg *ServerConfig) flagsRead() {
 	flag.Parse()
 }
 
+// LoadServerConfig - создает ServerConfig и заполняет его в следующем порядке:
+//
+// Значение по умолчанию -> YAML-файл -> переменные окружения -> флаги запуска.
+//
+// То, что находится правее в списке - будет в приоритете над тем, что левее.
 func LoadServerConfig() *ServerConfig {
 	//default config
 	cfg := &ServerConfig{
@@ -112,17 +120,7 @@ func LoadServerConfig() *ServerConfig {
 	return cfg
 }
 
-func CheckGZIP(r *http.Request) (io.ReadCloser, error) {
-	if r.Header.Get("Content-Encoding") == "gzip" {
-		gz, err := gzip.NewReader(r.Body)
-		if err != nil {
-			return nil, err
-		}
-		return gz, nil
-	}
-	return r.Body, nil
-}
-
+// LogConfig - настраивает формат логирования для zerolog.
 func LogConfig() zerolog.ConsoleWriter {
 	output := zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}
 	output.FormatLevel = func(i interface{}) string {

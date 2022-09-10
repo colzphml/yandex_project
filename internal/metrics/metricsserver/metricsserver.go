@@ -1,3 +1,4 @@
+// Модуль metricsserver содержит специфические для сервера методы по работе с метриками.
 package metricsserver
 
 import (
@@ -6,6 +7,7 @@ import (
 	"github.com/colzphml/yandex_project/internal/metrics"
 )
 
+// ConvertToMetric - превращает строковые значения имени, типа и значения в метрику.
 func ConvertToMetric(metricName, metricType, metricValue string) (metrics.Metrics, error) {
 	var result metrics.Metrics
 	result.ID = metricName
@@ -30,6 +32,7 @@ func ConvertToMetric(metricName, metricType, metricValue string) (metrics.Metric
 	}
 }
 
+// NewValue - логическая операция по обновлению метрики: gauge перезаписывается, counter суммируется с предыдущим значением.
 func NewValue(oldValue metrics.Metrics, newValue metrics.Metrics) (metrics.Metrics, error) {
 	var result metrics.Metrics
 	result.ID = newValue.ID

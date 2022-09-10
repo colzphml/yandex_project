@@ -1,3 +1,4 @@
+// Модуль handlers описывает логику работы endpoints.
 package handlers
 
 import (
@@ -19,6 +20,9 @@ import (
 
 var log = zerolog.New(serverutils.LogConfig()).With().Timestamp().Str("component", "handlers").Logger()
 
+// SaveHandler - хэндлер, сохраняющий метрику из URL.
+//
+// POST [/update/{metric_type}/{metric_name}/{metric_value}].
 func SaveHandler(ctx context.Context, repo storage.Repositorier, cfg *serverutils.ServerConfig) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		metricName := chi.URLParam(r, "metric_name")
@@ -55,6 +59,9 @@ func SaveHandler(ctx context.Context, repo storage.Repositorier, cfg *serverutil
 	}
 }
 
+// SaveJSONHandler - хэндлер, сохраняющий метрику из body в формате JSON. Проверяет подпись данных.
+//
+// POST [/update/].
 func SaveJSONHandler(ctx context.Context, repo storage.Repositorier, cfg *serverutils.ServerConfig) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		var m metrics.Metrics
@@ -90,6 +97,9 @@ func SaveJSONHandler(ctx context.Context, repo storage.Repositorier, cfg *server
 	}
 }
 
+// SaveJSONArrayHandler - хэндлер, сохраняющий массив метрик из body в формате JSON. Проверяет подпись данных.
+//
+// POST [/updates/].
 func SaveJSONArrayHandler(ctx context.Context, repo storage.Repositorier, cfg *serverutils.ServerConfig) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		var m []metrics.Metrics
@@ -128,6 +138,9 @@ func SaveJSONArrayHandler(ctx context.Context, repo storage.Repositorier, cfg *s
 	}
 }
 
+// ListMetricsHandler - возвращает список сохраненных метрик с их значением.
+//
+// GET [/].
 func ListMetricsHandler(ctx context.Context, repo storage.Repositorier, cfg *serverutils.ServerConfig) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		metricList := repo.ListMetrics(ctx)
@@ -141,6 +154,9 @@ func ListMetricsHandler(ctx context.Context, repo storage.Repositorier, cfg *ser
 	}
 }
 
+// GetValueHandler - возвращает значение метрики для запрошенного имени.
+//
+// GET [/value/{metric_type}/{metric_name}].
 func GetValueHandler(ctx context.Context, repo storage.Repositorier) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		mName := chi.URLParam(r, "metric_name")
@@ -161,6 +177,9 @@ func GetValueHandler(ctx context.Context, repo storage.Repositorier) http.Handle
 	}
 }
 
+// GetJSONValueHandler - возвращает метрику для запрошенного имени в формате JSON.
+//
+// GET [/value/].
 func GetJSONValueHandler(ctx context.Context, repo storage.Repositorier, cfg *serverutils.ServerConfig) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		var m metrics.Metrics
@@ -193,6 +212,9 @@ func GetJSONValueHandler(ctx context.Context, repo storage.Repositorier, cfg *se
 	}
 }
 
+// PingHandler - проверяет доступность хранилища.
+//
+// GET [/ping].
 func PingHandler(ctx context.Context, repo storage.Repositorier, cfg *serverutils.ServerConfig) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		err := repo.Ping(ctx)
