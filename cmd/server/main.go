@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/colzphml/yandex_project/internal/handlers"
+
 	//"middleware" используется в 2 пакетах, потому для собственного алиас
 	mdw "github.com/colzphml/yandex_project/internal/middleware"
 	"github.com/colzphml/yandex_project/internal/serverutils"
@@ -20,7 +22,7 @@ import (
 
 var log = zerolog.New(serverutils.LogConfig()).With().Timestamp().Str("component", "server").Logger()
 
-//вынес в отдельную функцию создание сервера
+// вынес в отдельную функцию создание сервера
 func HTTPServer(ctx context.Context, cfg *serverutils.ServerConfig, repo storage.Repositorier) *http.Server {
 	r := chi.NewRouter()
 	r.Use(mdw.GzipHandle)
@@ -48,6 +50,11 @@ func HTTPServer(ctx context.Context, cfg *serverutils.ServerConfig, repo storage
 }
 
 func main() {
+	/*
+		go func() {
+			fmt.Println(http.ListenAndServe("localhost:6061", nil))
+		}()
+	*/
 	log.Info().Msg("server started")
 	cfg := serverutils.LoadServerConfig()
 	log.Info().Dict("cfg", zerolog.Dict().

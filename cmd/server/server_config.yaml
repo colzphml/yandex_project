@@ -1,4 +1,5 @@
 ServerAddress: "127.0.0.1:8080"
 StoreInterval: 300s
-StoreFile:     "./tmp/devops-metrics-db.json"
-Restore:       true
+StoreFile: "./tmp/devops-metrics-db.json"
+Restore: false
+DBDSN: "postgres://pi:toor@192.168.1.69:5432/yandex"

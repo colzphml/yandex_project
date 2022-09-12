@@ -1,10 +1,11 @@
+// Модуль agentutils содержит в себе методы для работы агента, не зависящие от других модулей агента.
+// Содержит в себе структуру для хранения конфигурации запуска агента и методы для чтения параметров запуска.
 package agentutils
 
 import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -17,16 +18,18 @@ import (
 
 var log = zerolog.New(LogConfig()).With().Timestamp().Str("component", "agentutils").Logger()
 
+// AgentConfig - конфигурация агента для старта.
 type AgentConfig struct {
-	ServerAddress  string            `yaml:"ServerAddress" env:"ADDRESS"`
-	PollInterval   time.Duration     `yaml:"PollInterval" env:"POLL_INTERVAL"`
-	ReportInterval time.Duration     `yaml:"ReportInterval" env:"REPORT_INTERVAL"`
-	Key            string            `yaml:"Key" env:"KEY"`
-	Metrics        map[string]string `yaml:"Metrics"`
+	ServerAddress  string            `yaml:"ServerAddress" env:"ADDRESS"`          // Адрес сервера обработки метрик
+	PollInterval   time.Duration     `yaml:"PollInterval" env:"POLL_INTERVAL"`     // Интервал сбора метрик агентом
+	ReportInterval time.Duration     `yaml:"ReportInterval" env:"REPORT_INTERVAL"` // Интервал отправки данных на сервер
+	Key            string            `yaml:"Key" env:"KEY"`                        // Ключ для подписи данных
+	Metrics        map[string]string `yaml:"Metrics"`                              // Описание метрик, собираемых из runtime
 }
 
+// yamlRead - считывает yaml-файл конфигурации с названием "agent_config.yaml" и заполняет структуру AgentConfig.
 func (cfg *AgentConfig) yamlRead(file string) {
-	yfile, err := ioutil.ReadFile(file)
+	yfile, err := os.ReadFile(file)
 	if err != nil {
 		log.Error().Err(err).Msg("cannot open yaml file")
 	} else {
@@ -37,6 +40,7 @@ func (cfg *AgentConfig) yamlRead(file string) {
 	}
 }
 
+// envRead - считывает переменные окружения и заполняет структуру AgentConfig.
 func (cfg *AgentConfig) envRead() {
 	err := env.Parse(cfg)
 	if err != nil {
@@ -44,6 +48,7 @@ func (cfg *AgentConfig) envRead() {
 	}
 }
 
+// flagsRead - считывает флаги запуска и заполняет структуру AgentConfig.
 func (cfg *AgentConfig) flagsRead() {
 	flag.Func("a", "server address like <server>:<port>, example: -a \"127.0.0.1:8080\"", func(flagValue string) error {
 		if flagValue != "" {
@@ -80,6 +85,11 @@ func (cfg *AgentConfig) flagsRead() {
 	flag.Parse()
 }
 
+// LoadAgentConfig - создает AgentConfig и заполняет его в следующем порядке:
+//
+// Значение по умолчанию -> YAML-файл -> переменные окружения -> флаги запуска.
+//
+// То, что находится правее в списке - будет в приоритете над тем, что левее.
 func LoadAgentConfig() *AgentConfig {
 	//default config
 	cfg := &AgentConfig{
@@ -126,6 +136,7 @@ func LoadAgentConfig() *AgentConfig {
 	return cfg
 }
 
+// HTTPSend - производит POST запрос на указанный URL. В URL содержится вся необходимая информация (имя метрики, тип, значение)
 func HTTPSend(client *http.Client, url string) error {
 	request, err := http.NewRequest(http.MethodPost, url, nil)
 	if err != nil {
@@ -140,6 +151,7 @@ func HTTPSend(client *http.Client, url string) error {
 	return nil
 }
 
+// HTTPSendJSON - производит отправку json-метрики (в виде []byte) на сервер по указанному URL.
 func HTTPSendJSON(client *http.Client, url string, postBody []byte) error {
 	body := bytes.NewBuffer(postBody)
 	request, err := http.NewRequest(http.MethodPost, url, body)
@@ -158,6 +170,7 @@ func HTTPSendJSON(client *http.Client, url string, postBody []byte) error {
 	return nil
 }
 
+// LogConfig - настраивает формат логирования для zerolog.
 func LogConfig() zerolog.ConsoleWriter {
 	output := zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}
 	output.FormatLevel = func(i interface{}) string {

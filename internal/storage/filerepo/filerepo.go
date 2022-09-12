@@ -1,3 +1,4 @@
+// filerepo - реализация интерфейса Repositorier с использованием файла.
 package filerepo
 
 import (

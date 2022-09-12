@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"sync"
@@ -18,6 +19,11 @@ import (
 var log = zerolog.New(agentutils.LogConfig()).With().Timestamp().Str("component", "agent").Logger()
 
 func main() {
+	/*
+		go func() {
+			fmt.Println(http.ListenAndServe("localhost:6060", nil))
+		}()
+	*/
 	log.Info().Msg("agent started")
 	now := time.Now()
 	//read config file

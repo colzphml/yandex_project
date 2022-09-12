@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -305,5 +306,24 @@ func TestMetrics_CompareHash(t *testing.T) {
 				assert.Equal(t, tt.want, got)
 			}
 		})
+	}
+}
+
+func BenchmarkFillHash(b *testing.B) {
+	var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	buf := make([]rune, 10)
+	for i := range buf {
+		buf[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	str := string(buf)
+	value := 777.77
+	metric := Metrics{
+		ID:    "test",
+		MType: "gauge",
+		Value: &value,
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		metric.FillHash(str)
 	}
 }

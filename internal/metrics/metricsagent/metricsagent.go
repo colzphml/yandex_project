@@ -1,3 +1,4 @@
+// Модуль metricsagent содержит специфические для агента методы по работе с метриками.
 package metricsagent
 
 import (
@@ -20,11 +21,13 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 )
 
+// MetricRepo - хранилище метрик для сбора (потокобезопасное, так как есть 2 независимых коллектора - Runtime и System).
 type MetricRepo struct {
 	db map[string]metrics.Metrics
 	mu sync.Mutex
 }
 
+// NewRepo - инициализирует хранилище метрик.
 func NewRepo() *MetricRepo {
 	r := MetricRepo{
 		db: make(map[string]metrics.Metrics),
@@ -34,7 +37,8 @@ func NewRepo() *MetricRepo {
 
 var log = zerolog.New(agentutils.LogConfig()).With().Timestamp().Str("component", "metricsagent").Logger()
 
-func GetRuntimeMetric(m *runtime.MemStats, fieldName string, fieldType string) (metrics.Metrics, error) {
+// getRuntimeMetric - получает из runtime значение метрики fieldName и возвращает его с типом fieldType.
+func getRuntimeMetric(m *runtime.MemStats, fieldName string, fieldType string) (metrics.Metrics, error) {
 	var result metrics.Metrics
 	result.ID = fieldName
 	result.MType = fieldType
@@ -72,11 +76,14 @@ func GetRuntimeMetric(m *runtime.MemStats, fieldName string, fieldType string) (
 	}
 }
 
+// ReadRuntimeMetrics - считывает метрики из Runtime согласно описанию из конфига и сохраняет их в хранилище метрик для отправки.
+//
+// Так же добавляет 2 метрики: Количество запросов PollCount - counter, Слуучайное число RandomValue - gauge.
 func ReadRuntimeMetrics(repo *MetricRepo, metricsDescr map[string]string, runtime *runtime.MemStats, inc int64) {
 	repo.mu.Lock()
 	defer repo.mu.Unlock()
 	for k, v := range metricsDescr {
-		value, err := GetRuntimeMetric(runtime, k, v)
+		value, err := getRuntimeMetric(runtime, k, v)
 		if err != nil {
 			log.Error().Err(err).Msg("failed collect metric")
 			continue
@@ -90,6 +97,7 @@ func ReadRuntimeMetrics(repo *MetricRepo, metricsDescr map[string]string, runtim
 	repo.db[randMetrics.ID] = randMetrics
 }
 
+// CollectRuntimeWorker - воркер, который записывает метрики спустя каждый интервал. Отвечает за сбор метрик и штатное завершение потока при остановке работы.
 func CollectRuntimeWorker(ctx context.Context, wg *sync.WaitGroup, cfg *agentutils.AgentConfig, repo *MetricRepo) {
 	var runtimeState runtime.MemStats
 	var pollCouter int64
@@ -109,19 +117,21 @@ func CollectRuntimeWorker(ctx context.Context, wg *sync.WaitGroup, cfg *agentuti
 	}
 }
 
-func GetVirtualMemoryMetrics() ([]metrics.Metrics, error) {
+// getVirtualMemoryMetrics - собирает метрики памяти: TotalMemory и FreeMemory.
+func getVirtualMemoryMetrics() ([]metrics.Metrics, error) {
 	var result []metrics.Metrics
 	vmem, err := mem.VirtualMemory()
 	if err != nil {
 		log.Error().Err(err).Msg("failed get virtual memory")
 		return nil, err
 	}
-	result = append(result, GetTotalMemory(vmem))
-	result = append(result, GetFreeMemory(vmem))
+	result = append(result, getTotalMemory(vmem))
+	result = append(result, getFreeMemory(vmem))
 	return result, nil
 }
 
-func GetTotalMemory(vmem *mem.VirtualMemoryStat) metrics.Metrics {
+// getTotalMemory - создает и заполняет метрику TotalMemory.
+func getTotalMemory(vmem *mem.VirtualMemoryStat) metrics.Metrics {
 	m := metrics.Metrics{}
 	m.ID = "TotalMemory"
 	m.MType = "gauge"
@@ -130,7 +140,8 @@ func GetTotalMemory(vmem *mem.VirtualMemoryStat) metrics.Metrics {
 	return m
 }
 
-func GetFreeMemory(vmem *mem.VirtualMemoryStat) metrics.Metrics {
+// getFreeMemory - создает и заполняет метрику FreeMemory.
+func getFreeMemory(vmem *mem.VirtualMemoryStat) metrics.Metrics {
 	m := metrics.Metrics{}
 	m.ID = "FreeMemory"
 	m.MType = "gauge"
@@ -139,7 +150,8 @@ func GetFreeMemory(vmem *mem.VirtualMemoryStat) metrics.Metrics {
 	return m
 }
 
-func GetCPUMetrics() ([]metrics.Metrics, error) {
+// getCPUMetrics - получает количество ядер процессора,создает метрики с названием "CPUutilization№" и заполняет их значением утилизации с последней проверки.
+func getCPUMetrics() ([]metrics.Metrics, error) {
 	var result []metrics.Metrics
 	totalCPU, err := cpu.Counts(true)
 	if err != nil {
@@ -162,10 +174,11 @@ func GetCPUMetrics() ([]metrics.Metrics, error) {
 	return result, nil
 }
 
-func ReadSystemeMetrics(repo *MetricRepo) {
+// ReadSystemMetrics - считывает метрики ситсемы (память и ЦПУ) и сохраняет их в хранилище метрик для отправки.
+func ReadSystemMetrics(repo *MetricRepo) {
 	repo.mu.Lock()
 	defer repo.mu.Unlock()
-	virtualmemory, err := GetVirtualMemoryMetrics()
+	virtualmemory, err := getVirtualMemoryMetrics()
 	if err != nil {
 		log.Error().Err(err)
 	} else {
@@ -173,7 +186,7 @@ func ReadSystemeMetrics(repo *MetricRepo) {
 			repo.db[v.ID] = v
 		}
 	}
-	cpumetrics, err := GetCPUMetrics()
+	cpumetrics, err := getCPUMetrics()
 	if err != nil {
 		log.Error().Err(err)
 		return
@@ -183,12 +196,13 @@ func ReadSystemeMetrics(repo *MetricRepo) {
 	}
 }
 
+// CollectSystemWorker - воркер, который записывает системные метрики спустя каждый интервал. Отвечает за сбор метрик и штатное завершение потока при остановке работы.
 func CollectSystemWorker(ctx context.Context, wg *sync.WaitGroup, cfg *agentutils.AgentConfig, repo *MetricRepo) {
 	tickerPoll := time.NewTicker(cfg.PollInterval)
 	for {
 		select {
 		case <-tickerPoll.C:
-			ReadSystemeMetrics(repo)
+			ReadSystemMetrics(repo)
 		case <-ctx.Done():
 			tickerPoll.Stop()
 			log.Info().Msg("stopped collectWorker System")
@@ -198,6 +212,7 @@ func CollectSystemWorker(ctx context.Context, wg *sync.WaitGroup, cfg *agentutil
 	}
 }
 
+// SendMetrics - формирует из метрики запрос на отправку данных серверу через URL path.
 func SendMetrics(srv string, repo *MetricRepo, client *http.Client) {
 	var urlPrefix, urlPart string
 	urlPrefix = "http://" + srv
@@ -213,6 +228,7 @@ func SendMetrics(srv string, repo *MetricRepo, client *http.Client) {
 	}
 }
 
+// SendJSONMetrics - формирует из метрики запрос на отправку данных серверу через json-body.
 func SendJSONMetrics(srv string, key string, repo *MetricRepo, client *http.Client) {
 	urlPrefix := "http://" + srv + "/update/"
 	repo.mu.Lock()
@@ -232,6 +248,7 @@ func SendJSONMetrics(srv string, key string, repo *MetricRepo, client *http.Clie
 	}
 }
 
+// SendListJSONMetrics - формирует body из набора метрик запрос на отправку данных серверу через array json.
 func SendListJSONMetrics(srv string, key string, repo *MetricRepo, client *http.Client) {
 	urlPrefix := "http://" + srv + "/updates/"
 	var list []metrics.Metrics
@@ -251,6 +268,7 @@ func SendListJSONMetrics(srv string, key string, repo *MetricRepo, client *http.
 	}
 }
 
+// SendWorker - воркер, который отправляет собранные на текущий момент метрики на сервер. Отвечает за отправку метрик и штатное завершение потока при остановке работы.
 func SendWorker(ctx context.Context, wg *sync.WaitGroup, cfg *agentutils.AgentConfig, repo *MetricRepo) {
 	tickerReport := time.NewTicker(cfg.ReportInterval)
 	client := &http.Client{}

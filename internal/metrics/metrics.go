@@ -1,3 +1,4 @@
+// Модуль metrics содержит описание объекта метрики, перечень ошибок и методы для работы с метриками.
 package metrics
 
 import (
@@ -10,12 +11,14 @@ import (
 	"strconv"
 )
 
+// Ошибки при работе с метриками
 var (
-	ErrUndefinedType = errors.New("type of metric undefined")
-	ErrParseMetric   = errors.New("can't parse metric")
-	ErrWrongType     = errors.New("metric have another type")
+	ErrUndefinedType = errors.New("type of metric undefined") // Тип метрики не определен
+	ErrParseMetric   = errors.New("can't parse metric")       // Проблемы с парсингом метрики
+	ErrWrongType     = errors.New("metric have another type") // Обрабатываемая метрика должна иметь другой тип
 )
 
+// Metrics - структура, описывающая основные атрибуты метрики.
 type Metrics struct {
 	ID    string   `json:"id"`              // имя метрики
 	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
@@ -24,6 +27,7 @@ type Metrics struct {
 	Hash  string   `json:"hash,omitempty"`  // значение хеш-функции
 }
 
+// ValueString - возвращает значение метрики в виде строки.
 func (m *Metrics) ValueString() string {
 	switch m.MType {
 	case "gauge":
@@ -35,6 +39,7 @@ func (m *Metrics) ValueString() string {
 	}
 }
 
+// CalculateHash - рассчитывает hash для метрики.
 func (m *Metrics) CalculateHash(key string) ([]byte, error) {
 	var src string
 	switch m.MType {
@@ -52,6 +57,7 @@ func (m *Metrics) CalculateHash(key string) ([]byte, error) {
 	return hash, nil
 }
 
+// FillHash - заполняет рассчитанным hash поле метрики
 func (m *Metrics) FillHash(key string) error {
 	if key != "" {
 		hash, err := m.CalculateHash(key)
@@ -63,6 +69,7 @@ func (m *Metrics) FillHash(key string) error {
 	return nil
 }
 
+// CompareHash - проверяет подпись метрики, полученный хеш и ожидаемые данные.
 func (m *Metrics) CompareHash(key string) (bool, error) {
 	if key != "" {
 		hash, err := m.CalculateHash(key)
@@ -78,6 +85,7 @@ func (m *Metrics) CompareHash(key string) (bool, error) {
 	return true, nil
 }
 
+// signData - рассчитывает hash с ключем для строки.
 func signData(src, key string) ([]byte, error) {
 	h := hmac.New(sha256.New, []byte(key))
 	_, err := h.Write([]byte(src))
