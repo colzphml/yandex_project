@@ -1,0 +1,8 @@
+FROM scratch
+
+ADD server /
+ADD ./*.yaml /
+
+EXPOSE 8080
+
+CMD ["/server"]
