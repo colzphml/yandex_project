@@ -32,4 +32,5 @@ vendor/
 
 #db ignore
 cmd/server/tmp
+tmp
 internal/tasks
