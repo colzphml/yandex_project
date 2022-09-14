@@ -24,6 +24,7 @@ services:
     image: agent
     build:
       dockerfile: Dockerfile
+      context: .
       args:
         COMPONENT: agent
     environment:
@@ -38,6 +39,7 @@ services:
     image: server
     build:
       dockerfile: Dockerfile
+      context: .
       args:
         COMPONENT: server
     environment:
