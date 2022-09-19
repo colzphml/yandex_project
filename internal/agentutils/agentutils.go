@@ -20,11 +20,11 @@ var log = zerolog.New(LogConfig()).With().Timestamp().Str("component", "agentuti
 
 // AgentConfig - конфигурация агента для старта.
 type AgentConfig struct {
+	Metrics        map[string]string `yaml:"Metrics"`                              // Описание метрик, собираемых из runtime
+	Key            string            `yaml:"Key" env:"KEY"`                        // Ключ для подписи данных
 	ServerAddress  string            `yaml:"ServerAddress" env:"ADDRESS"`          // Адрес сервера обработки метрик
 	PollInterval   time.Duration     `yaml:"PollInterval" env:"POLL_INTERVAL"`     // Интервал сбора метрик агентом
 	ReportInterval time.Duration     `yaml:"ReportInterval" env:"REPORT_INTERVAL"` // Интервал отправки данных на сервер
-	Key            string            `yaml:"Key" env:"KEY"`                        // Ключ для подписи данных
-	Metrics        map[string]string `yaml:"Metrics"`                              // Описание метрик, собираемых из runtime
 }
 
 // yamlRead - считывает yaml-файл конфигурации с названием "agent_config.yaml" и заполняет структуру AgentConfig.

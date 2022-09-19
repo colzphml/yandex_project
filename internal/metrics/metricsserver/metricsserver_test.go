@@ -95,13 +95,13 @@ func TestNewValue(t *testing.T) {
 		id        string
 		mtypeOld  string
 		mtypeNew  string
-		oldValue  float64
-		oldDelta  int64
-		newValue  float64
-		newDelta  int64
 		wantID    string
 		wantType  string
+		newDelta  int64
+		oldDelta  int64
 		wantDelta int64
+		newValue  float64
+		oldValue  float64
 		wantValue float64
 		wantErr   bool
 	}{

@@ -33,6 +33,9 @@ services:
       REPORT_INTERVAL: "10s"
       KEY: "testkey"
       TZ: "Europe/Moscow"
+    depends_on:
+      server:
+        condition: service_started
     restart: unless-stopped
 
   server:
@@ -49,6 +52,9 @@ services:
       KEY: "testkey"
       DATABASE_DSN: "postgres://puser:ppaswd@postgres:5432/yandex"
       TZ: "Europe/Moscow"
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "8080:8080"
     restart: unless-stopped

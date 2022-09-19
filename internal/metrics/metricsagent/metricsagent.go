@@ -47,7 +47,7 @@ func getRuntimeMetric(m *runtime.MemStats, fieldName string, fieldType string) (
 		r = r.Elem()
 	}
 	f := r.FieldByName(fieldName)
-	if f == (reflect.Value{}) {
+	if !f.IsValid() {
 		return metrics.Metrics{}, errors.New("runtime not have this variable:" + fieldName + ", check config file")
 	}
 	switch t := r.FieldByName(fieldName).Type().Name(); {
