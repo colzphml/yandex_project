@@ -15,7 +15,7 @@ RUN go mod download && go mod verify
 
 WORKDIR /app/cmd/$COMPONENT
 
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-X main.buildVersion=1.0.1 -X 'main.buildDate=$(date +'%Y/%m/%d %H:%M:%S')' -X main.buildCommit=1.0.1 "-a -installsuffix cgo -o app .
 
 
 FROM scratch as final
