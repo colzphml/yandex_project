@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -22,32 +21,11 @@ import (
 )
 
 var (
-	buildVersion string
-	buildDate    string
-	buildCommit  string
-	log          = zerolog.New(serverutils.LogConfig()).With().Timestamp().Str("component", "server").Logger()
+	buildVersion string = "N/A"
+	buildDate    string = "N/A"
+	buildCommit  string = "N/A"
+	log                 = zerolog.New(serverutils.LogConfig()).With().Timestamp().Str("component", "server").Logger()
 )
-
-func BuildInfo(f string) string {
-	switch f {
-	case "version":
-		if buildVersion == "" {
-			buildVersion = "N/A"
-		}
-		return fmt.Sprintf("Build version: %s", buildVersion)
-	case "date":
-		if buildDate == "" {
-			buildDate = "N/A"
-		}
-		return fmt.Sprintf("Build date: %s", buildDate)
-	case "commit":
-		if buildCommit == "" {
-			buildCommit = "N/A"
-		}
-		return fmt.Sprintf("Build commit: %s", buildCommit)
-	}
-	return ""
-}
 
 func HTTPServer(ctx context.Context, cfg *serverutils.ServerConfig, repo storage.Repositorier) *http.Server {
 	r := chi.NewRouter()
@@ -82,9 +60,9 @@ func main() {
 		}()
 	*/
 	log.Info().Msg("server started")
-	log.Info().Msg(BuildInfo("version"))
-	log.Info().Msg(BuildInfo("date"))
-	log.Info().Msg(BuildInfo("commit"))
+	log.Info().Msg(buildVersion)
+	log.Info().Msg(buildDate)
+	log.Info().Msg(buildCommit)
 	cfg := serverutils.LoadServerConfig()
 	log.Info().Dict("cfg", zerolog.Dict().
 		Str("ServerAddress", cfg.ServerAddress).

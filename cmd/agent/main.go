@@ -17,32 +17,11 @@ import (
 )
 
 var (
-	buildVersion string
-	buildDate    string
-	buildCommit  string
-	log          = zerolog.New(agentutils.LogConfig()).With().Timestamp().Str("component", "agent").Logger()
+	buildVersion string = "N/A"
+	buildDate    string = "N/A"
+	buildCommit  string = "N/A"
+	log                 = zerolog.New(agentutils.LogConfig()).With().Timestamp().Str("component", "agent").Logger()
 )
-
-func BuildInfo(f string) string {
-	switch f {
-	case "version":
-		if buildVersion == "" {
-			buildVersion = "N/A"
-		}
-		return fmt.Sprintf("Build version: %s", buildVersion)
-	case "date":
-		if buildDate == "" {
-			buildDate = "N/A"
-		}
-		return fmt.Sprintf("Build date: %s", buildDate)
-	case "commit":
-		if buildCommit == "" {
-			buildCommit = "N/A"
-		}
-		return fmt.Sprintf("Build commit: %s", buildCommit)
-	}
-	return ""
-}
 
 func main() {
 	/*
@@ -51,9 +30,9 @@ func main() {
 		}()
 	*/
 	log.Info().Msg("agent started")
-	log.Info().Msg(BuildInfo("version"))
-	log.Info().Msg(BuildInfo("date"))
-	log.Info().Msg(BuildInfo("commit"))
+	log.Info().Msg(buildVersion)
+	log.Info().Msg(buildDate)
+	log.Info().Msg(buildCommit)
 	now := time.Now()
 	//read config file
 	cfg := agentutils.LoadAgentConfig()
