@@ -59,6 +59,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				}
 				result := first.Name + "." + fun.Sel.Name
 				if result == "os.Exit" {
+					// скобки в паттерне вызывают проблемы - тест не может сматчить. Не могу найти информацию как экранировать
 					pass.Reportf(first.NamePos, "call os.Exit in main function of package main")
 				}
 			}

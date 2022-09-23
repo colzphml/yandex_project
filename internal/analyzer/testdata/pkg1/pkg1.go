@@ -7,7 +7,6 @@ import (
 
 func testfunc() {
 	fmt.Println("123")
-	os.Exit(0)
 }
 
 func main() {
