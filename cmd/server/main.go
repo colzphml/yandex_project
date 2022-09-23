@@ -60,9 +60,9 @@ func main() {
 		}()
 	*/
 	log.Info().Msg("server started")
-	log.Info().Msg(buildVersion)
-	log.Info().Msg(buildDate)
-	log.Info().Msg(buildCommit)
+	log.Info().Msg("Build version: " + buildVersion)
+	log.Info().Msg("Build date: " + buildDate)
+	log.Info().Msg("Build commit: " + buildCommit)
 	cfg := serverutils.LoadServerConfig()
 	log.Info().Dict("cfg", zerolog.Dict().
 		Str("ServerAddress", cfg.ServerAddress).
