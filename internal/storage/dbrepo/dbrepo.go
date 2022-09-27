@@ -94,7 +94,7 @@ func (m *MetricRepo) SaveMetric(ctx context.Context, metric metrics.Metrics) err
 			return err
 		}
 		sqlQuery = string(sqlBytes)
-		_, err := m.Pool.Exec(ctx, sqlQuery, metric.ID, metric.Value)
+		_, err = m.Pool.Exec(ctx, sqlQuery, metric.ID, metric.Value)
 		if err != nil {
 			return err
 		}

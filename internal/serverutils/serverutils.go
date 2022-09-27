@@ -19,12 +19,12 @@ var log = zerolog.New(LogConfig()).With().Timestamp().Str("component", "serverut
 
 // ServerConfig - конфигурация сервера для старта.
 type ServerConfig struct {
+	DBDSN         string        `yaml:"DBDSN" env:"DATABASE_DSN"`           // URL для подключения к Postgres
+	Key           string        `yaml:"Key" env:"KEY"`                      // Ключ для подписи данных
 	ServerAddress string        `yaml:"ServerAddress" env:"ADDRESS"`        // Адрес, по которому будут доступны endpoints
-	StoreInterval time.Duration `yaml:"StoreInterval" env:"STORE_INTERVAL"` // Интервал сохраниения данных при использовании файла как хранилища
 	StoreFile     string        `yaml:"StoreFile" env:"STORE_FILE"`         // Адрес файла для хранения метрик
 	Restore       bool          `yaml:"Restore" env:"RESTORE"`              // При true - значения метрик в памяти сервера восстановится из хранилища, при false - в памяти будет пустое хранилище
-	Key           string        `yaml:"Key" env:"KEY"`                      // Ключ для подписи данных
-	DBDSN         string        `yaml:"DBDSN" env:"DATABASE_DSN"`           // URL для подключения к Postgres
+	StoreInterval time.Duration `yaml:"StoreInterval" env:"STORE_INTERVAL"` // Интервал сохраниения данных при использовании файла как хранилища
 }
 
 // yamlRead - считывает yaml-файл конфигурации с названием "server_config.yaml" и заполняет структуру ServerConfig.

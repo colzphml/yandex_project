@@ -16,7 +16,12 @@ import (
 	"github.com/rs/zerolog"
 )
 
-var log = zerolog.New(agentutils.LogConfig()).With().Timestamp().Str("component", "agent").Logger()
+var (
+	buildVersion string = "N/A"
+	buildDate    string = "N/A"
+	buildCommit  string = "N/A"
+	log                 = zerolog.New(agentutils.LogConfig()).With().Timestamp().Str("component", "agent").Logger()
+)
 
 func main() {
 	/*
@@ -25,6 +30,9 @@ func main() {
 		}()
 	*/
 	log.Info().Msg("agent started")
+	log.Info().Msg(buildVersion)
+	log.Info().Msg(buildDate)
+	log.Info().Msg(buildCommit)
 	now := time.Now()
 	//read config file
 	cfg := agentutils.LoadAgentConfig()

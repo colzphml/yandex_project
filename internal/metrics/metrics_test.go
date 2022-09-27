@@ -15,10 +15,10 @@ func TestMetrics_ValueString(t *testing.T) {
 	}
 	tests := []struct {
 		name   string
-		fields fields
-		Value  float64
-		Delta  int64
 		want   string
+		fields fields
+		Delta  int64
+		Value  float64
 	}{
 		{
 			name: "Test #1: get ValueString for Gauge",
@@ -71,12 +71,12 @@ func TestMetrics_CalculateHash(t *testing.T) {
 		key string
 	}
 	tests := []struct {
+		args    args
 		name    string
 		fields  fields
-		args    args
-		value   float64
-		delta   int64
 		want    []byte
+		delta   int64
+		value   float64
 		wantErr bool
 	}{
 		{
@@ -140,12 +140,13 @@ func TestMetrics_FillHash(t *testing.T) {
 		key string
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		value   float64
-		delta   int64
-		want    string
+		name   string
+		want   string
+		args   args
+		fields fields
+		value  float64
+		delta  int64
+
 		wantErr bool
 	}{
 		{

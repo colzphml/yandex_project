@@ -20,9 +20,13 @@ import (
 	"github.com/rs/zerolog"
 )
 
-var log = zerolog.New(serverutils.LogConfig()).With().Timestamp().Str("component", "server").Logger()
+var (
+	buildVersion string = "N/A"
+	buildDate    string = "N/A"
+	buildCommit  string = "N/A"
+	log                 = zerolog.New(serverutils.LogConfig()).With().Timestamp().Str("component", "server").Logger()
+)
 
-// вынес в отдельную функцию создание сервера
 func HTTPServer(ctx context.Context, cfg *serverutils.ServerConfig, repo storage.Repositorier) *http.Server {
 	r := chi.NewRouter()
 	r.Use(mdw.GzipHandle)
@@ -56,6 +60,9 @@ func main() {
 		}()
 	*/
 	log.Info().Msg("server started")
+	log.Info().Msg("Build version: " + buildVersion)
+	log.Info().Msg("Build date: " + buildDate)
+	log.Info().Msg("Build commit: " + buildCommit)
 	cfg := serverutils.LoadServerConfig()
 	log.Info().Dict("cfg", zerolog.Dict().
 		Str("ServerAddress", cfg.ServerAddress).
@@ -84,7 +91,7 @@ Loop:
 			}
 			log.Info().Msg("metrics stored by interval")
 		case <-sigChan:
-			ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			ctxcancel, cancel := context.WithTimeout(ctx, 5*time.Second)
 			defer func() {
 				repo.DumpMetrics(ctx, cfg)
 				log.Info().Msg("metrics stored")
@@ -92,7 +99,7 @@ Loop:
 				tickerSave.Stop()
 				cancel()
 			}()
-			if err := srv.Shutdown(ctx); err != nil {
+			if err := srv.Shutdown(ctxcancel); err != nil {
 				log.Error().Err(err).Msg("failed shutdown server")
 			}
 			log.Info().Msg("server stopped")
