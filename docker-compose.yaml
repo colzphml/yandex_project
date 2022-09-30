@@ -49,7 +49,7 @@ services:
     environment:
       ADDRESS: ":8080"
       STORE_INTERVAL: "300s"
-      RESTORE: "false"
+      RESTORE: "true"
       KEY: "testkey"
       DATABASE_DSN: "postgres://puser:ppaswd@postgres:5432/yandex"
       TZ: "Europe/Moscow"

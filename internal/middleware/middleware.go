@@ -6,9 +6,7 @@ import (
 	"compress/gzip"
 	"crypto"
 	"crypto/rsa"
-	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 
@@ -51,18 +49,16 @@ func RSAHandler(cfg *serverutils.ServerConfig) func(http.Handler) http.Handler {
 				next.ServeHTTP(rw, r)
 				return
 			}
-			body, err := ioutil.ReadAll(r.Body)
+			body, err := io.ReadAll(r.Body)
 			if err != nil {
 				io.WriteString(rw, err.Error())
 				return
 			}
-			fmt.Println(string(body))
 			decryptedBytes, err := cfg.PrivateKey.Decrypt(nil, body, &rsa.OAEPOptions{Hash: crypto.SHA256})
 			if err != nil {
 				io.WriteString(rw, err.Error())
 				return
 			}
-			fmt.Println(string(decryptedBytes))
 			reader := io.NopCloser(bytes.NewBuffer(decryptedBytes))
 			r.Body = reader
 			next.ServeHTTP(rw, r)
