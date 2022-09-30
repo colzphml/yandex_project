@@ -25,6 +25,7 @@ ARG COMPONENT
 COPY --from=build /app/cmd/$COMPONENT/app /
 COPY --from=build /usr/share/zoneinfo /usr/share/zoneinfo
 ADD ./cmd/$COMPONENT/*.yaml /
+ADD ./cmd/$COMPONENT/*.pem /
 
 ENV TZ=Europe/Moscow
 

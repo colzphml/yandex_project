@@ -3,6 +3,10 @@
 package serverutils
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -19,12 +23,13 @@ var log = zerolog.New(LogConfig()).With().Timestamp().Str("component", "serverut
 
 // ServerConfig - конфигурация сервера для старта.
 type ServerConfig struct {
-	DBDSN         string        `yaml:"DBDSN" env:"DATABASE_DSN"`           // URL для подключения к Postgres
-	Key           string        `yaml:"Key" env:"KEY"`                      // Ключ для подписи данных
-	ServerAddress string        `yaml:"ServerAddress" env:"ADDRESS"`        // Адрес, по которому будут доступны endpoints
-	StoreFile     string        `yaml:"StoreFile" env:"STORE_FILE"`         // Адрес файла для хранения метрик
-	Restore       bool          `yaml:"Restore" env:"RESTORE"`              // При true - значения метрик в памяти сервера восстановится из хранилища, при false - в памяти будет пустое хранилище
-	StoreInterval time.Duration `yaml:"StoreInterval" env:"STORE_INTERVAL"` // Интервал сохраниения данных при использовании файла как хранилища
+	DBDSN         string          `yaml:"DBDSN" env:"DATABASE_DSN"`           // URL для подключения к Postgres
+	Key           string          `yaml:"Key" env:"KEY"`                      // Ключ для подписи данных
+	ServerAddress string          `yaml:"ServerAddress" env:"ADDRESS"`        // Адрес, по которому будут доступны endpoints
+	StoreFile     string          `yaml:"StoreFile" env:"STORE_FILE"`         // Адрес файла для хранения метрик
+	Restore       bool            `yaml:"Restore" env:"RESTORE"`              // При true - значения метрик в памяти сервера восстановится из хранилища, при false - в памяти будет пустое хранилище
+	StoreInterval time.Duration   `yaml:"StoreInterval" env:"STORE_INTERVAL"` // Интервал сохраниения данных при использовании файла как хранилища
+	PrivateKey    *rsa.PrivateKey // приватный ключ
 }
 
 // yamlRead - считывает yaml-файл конфигурации с названием "server_config.yaml" и заполняет структуру ServerConfig.
@@ -45,6 +50,15 @@ func (cfg *ServerConfig) envRead() {
 	err := env.Parse(cfg)
 	if err != nil {
 		log.Error().Err(err).Msg("problem with environment read")
+	}
+	keypath := os.Getenv("CRYPTO_KEY")
+	if keypath != "" {
+		pk, err := getPrivateKey(keypath)
+		if err != nil {
+			log.Error().Err(err).Msg("cannot get private key")
+			return
+		}
+		cfg.PrivateKey = pk
 	}
 }
 
@@ -94,6 +108,17 @@ func (cfg *ServerConfig) flagsRead() {
 		}
 		return nil
 	})
+	flag.Func("crypto-key", "path to private key", func(flagValue string) error {
+		if flagValue != "" {
+			pk, err := getPrivateKey(flagValue)
+			if err != nil {
+				log.Error().Err(err).Msg("cannot get private key")
+				return err
+			}
+			cfg.PrivateKey = pk
+		}
+		return nil
+	})
 	flag.Parse()
 }
 
@@ -127,4 +152,20 @@ func LogConfig() zerolog.ConsoleWriter {
 		return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
 	}
 	return output
+}
+
+func getPrivateKey(file string) (*rsa.PrivateKey, error) {
+	byte, err := os.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+	block, _ := pem.Decode(byte)
+	if block == nil {
+		return nil, errors.New("failed decode pem")
+	}
+	pk, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	return pk, nil
 }

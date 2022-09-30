@@ -4,6 +4,10 @@ package agentutils
 
 import (
 	"bytes"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -25,6 +29,7 @@ type AgentConfig struct {
 	ServerAddress  string            `yaml:"ServerAddress" env:"ADDRESS"`          // Адрес сервера обработки метрик
 	PollInterval   time.Duration     `yaml:"PollInterval" env:"POLL_INTERVAL"`     // Интервал сбора метрик агентом
 	ReportInterval time.Duration     `yaml:"ReportInterval" env:"REPORT_INTERVAL"` // Интервал отправки данных на сервер
+	PublicKey      *rsa.PublicKey    // Публичный ключ
 }
 
 // yamlRead - считывает yaml-файл конфигурации с названием "agent_config.yaml" и заполняет структуру AgentConfig.
@@ -45,6 +50,15 @@ func (cfg *AgentConfig) envRead() {
 	err := env.Parse(cfg)
 	if err != nil {
 		log.Error().Err(err).Msg("cannot read environment variables")
+	}
+	keypath := os.Getenv("CRYPTO_KEY")
+	if keypath != "" {
+		pk, err := getPublicKey(keypath)
+		if err != nil {
+			log.Error().Err(err).Msg("cannot get public key")
+			return
+		}
+		cfg.PublicKey = pk
 	}
 }
 
@@ -79,6 +93,17 @@ func (cfg *AgentConfig) flagsRead() {
 	flag.Func("k", "key for data hash, example: -k \"sample key\"", func(flagValue string) error {
 		if flagValue != "" {
 			cfg.Key = flagValue
+		}
+		return nil
+	})
+	flag.Func("crypto-key", "path to public key", func(flagValue string) error {
+		if flagValue != "" {
+			pk, err := getPublicKey(flagValue)
+			if err != nil {
+				log.Error().Err(err).Msg("cannot get public key")
+				return err
+			}
+			cfg.PublicKey = pk
 		}
 		return nil
 	})
@@ -177,4 +202,20 @@ func LogConfig() zerolog.ConsoleWriter {
 		return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
 	}
 	return output
+}
+
+func getPublicKey(file string) (*rsa.PublicKey, error) {
+	byte, err := os.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+	block, _ := pem.Decode(byte)
+	if block == nil {
+		return nil, errors.New("failed decode pem")
+	}
+	pk, err := x509.ParsePKCS1PublicKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	return pk, nil
 }
