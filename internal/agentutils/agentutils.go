@@ -1,4 +1,4 @@
-// Модуль agentutils содержит в себе методы для работы агента, не зависящие от других модулей агента.
+// Package agentutils содержит в себе методы для работы агента, не зависящие от других модулей агента.
 // Содержит в себе структуру для хранения конфигурации запуска агента и методы для чтения параметров запуска.
 package agentutils
 
@@ -18,7 +18,6 @@ import (
 
 	"github.com/caarlos0/env"
 	"github.com/rs/zerolog"
-	"gopkg.in/yaml.v3"
 )
 
 var log = zerolog.New(LogConfig()).With().Timestamp().Str("component", "agentutils").Logger()
@@ -84,19 +83,6 @@ func (cfg *AgentConfig) jsonRead(file string) {
 	err = json.Unmarshal(jfile, &cfg)
 	if err != nil {
 		log.Error().Err(err).Msg("parse json err")
-	}
-}
-
-// yamlRead - считывает yaml-файл конфигурации с названием "agent_config.yaml" и заполняет структуру AgentConfig.
-func (cfg *AgentConfig) yamlRead(file string) {
-	yfile, err := os.ReadFile(file)
-	if err != nil {
-		log.Error().Err(err).Msg("cannot open yaml file")
-	} else {
-		err = yaml.Unmarshal(yfile, &cfg)
-		if err != nil {
-			log.Error().Err(err).Msg("cannot parse yaml file")
-		}
 	}
 }
 
