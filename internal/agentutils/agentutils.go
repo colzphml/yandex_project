@@ -24,12 +24,12 @@ var log = zerolog.New(LogConfig()).With().Timestamp().Str("component", "agentuti
 
 // AgentConfig - конфигурация агента для старта.
 type AgentConfig struct {
-	Metrics        map[string]string `yaml:"Metrics"`                              // Описание метрик, собираемых из runtime
-	Key            string            `yaml:"Key" env:"KEY"`                        // Ключ для подписи данных
-	ServerAddress  string            `yaml:"ServerAddress" env:"ADDRESS"`          // Адрес сервера обработки метрик
-	ConfigFile     string            `env:"CONFIG"`                                // Адрес файла конфигурации в формате JSON
-	PollInterval   time.Duration     `yaml:"PollInterval" env:"POLL_INTERVAL"`     // Интервал сбора метрик агентом
-	ReportInterval time.Duration     `yaml:"ReportInterval" env:"REPORT_INTERVAL"` // Интервал отправки данных на сервер
+	Metrics        map[string]string // Описание метрик, собираемых из runtime
+	Key            string            `env:"KEY"`                    // Ключ для подписи данных
+	ServerAddress  string            `env:"ADDRESS" json:"address"` // Адрес сервера обработки метрик
+	ConfigFile     string            `env:"CONFIG"`                 // Адрес файла конфигурации в формате JSON
+	PollInterval   time.Duration     `env:"POLL_INTERVAL"`          // Интервал сбора метрик агентом
+	ReportInterval time.Duration     `env:"REPORT_INTERVAL"`        // Интервал отправки данных на сервер
 	PublicKey      *rsa.PublicKey    // Публичный ключ
 }
 
@@ -165,7 +165,7 @@ func (cfg *AgentConfig) flagsRead() {
 
 // LoadAgentConfig - создает AgentConfig и заполняет его в следующем порядке:
 //
-// Значение по умолчанию -> YAML-файл -> переменные окружения -> флаги запуска.
+// Значение по умолчанию -> JSON-файл -> переменные окружения -> флаги запуска.
 //
 // То, что находится правее в списке - будет в приоритете над тем, что левее.
 func LoadAgentConfig() *AgentConfig {

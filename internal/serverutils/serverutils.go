@@ -1,4 +1,4 @@
-// Модуль serverutils содержит в себе методы для работы сервера, не зависящие от других модулей сервера.
+// Package serverutils содержит в себе методы для работы сервера, не зависящие от других модулей сервера.
 // Содержит в себе структуру для хранения конфигурации запуска сервера и методы для чтения параметров запуска.
 package serverutils
 
@@ -17,20 +17,19 @@ import (
 
 	"github.com/caarlos0/env"
 	"github.com/rs/zerolog"
-	"gopkg.in/yaml.v3"
 )
 
 var log = zerolog.New(LogConfig()).With().Timestamp().Str("component", "serverutils").Logger()
 
 // ServerConfig - конфигурация сервера для старта.
 type ServerConfig struct {
-	DBDSN         string          `yaml:"DBDSN" env:"DATABASE_DSN" json:"database_dsn"`             // URL для подключения к Postgres
-	Key           string          `yaml:"Key" env:"KEY"`                                            // Ключ для подписи данных
-	ServerAddress string          `yaml:"ServerAddress" env:"ADDRESS" json:"address"`               // Адрес, по которому будут доступны endpoints
-	StoreFile     string          `yaml:"StoreFile" env:"STORE_FILE" json:"store_file"`             // Адрес файла для хранения метрик
-	ConfigFile    string          `env:"CONFIG"`                                                    // Адрес файла конфигурации в формате JSON
-	Restore       bool            `yaml:"Restore" env:"RESTORE" json:"restore"`                     // При true - значения метрик в памяти сервера восстановится из хранилища, при false - в памяти будет пустое хранилище
-	StoreInterval time.Duration   `yaml:"StoreInterval" env:"STORE_INTERVAL" json:"store_interval"` // Интервал сохраниения данных при использовании файла как хранилища
+	DBDSN         string          `env:"DATABASE_DSN" json:"database_dsn"`     // URL для подключения к Postgres
+	Key           string          `env:"KEY"`                                  // Ключ для подписи данных
+	ServerAddress string          `env:"ADDRESS" json:"address"`               // Адрес, по которому будут доступны endpoints
+	StoreFile     string          `env:"STORE_FILE" json:"store_file"`         // Адрес файла для хранения метрик
+	ConfigFile    string          `env:"CONFIG"`                               // Адрес файла конфигурации в формате JSON
+	Restore       bool            `env:"RESTORE" json:"restore"`               // При true - значения метрик в памяти сервера восстановится из хранилища, при false - в памяти будет пустое хранилище
+	StoreInterval time.Duration   `env:"STORE_INTERVAL" json:"store_interval"` // Интервал сохраниения данных при использовании файла как хранилища
 	PrivateKey    *rsa.PrivateKey // приватный ключ
 }
 
@@ -75,19 +74,6 @@ func (cfg *ServerConfig) jsonRead(file string) {
 	err = json.Unmarshal(jfile, &cfg)
 	if err != nil {
 		log.Error().Err(err).Msg("parse json err")
-	}
-}
-
-// yamlRead - считывает yaml-файл конфигурации с названием "server_config.yaml" и заполняет структуру ServerConfig.
-func (cfg *ServerConfig) yamlRead(file string) {
-	yfile, err := os.ReadFile(file)
-	if err != nil {
-		log.Error().Err(err).Msg("file open trouble")
-	} else {
-		err = yaml.Unmarshal(yfile, &cfg)
-		if err != nil {
-			log.Error().Err(err).Msg("parse yaml err")
-		}
 	}
 }
 
