@@ -187,7 +187,13 @@ func (cfg *ServerConfig) flagsRead() {
 // То, что находится правее в списке - будет в приоритете над тем, что левее.
 func LoadServerConfig() *ServerConfig {
 	//flags config
-	cfg := &ServerConfig{}
+	cfg := &ServerConfig{
+		ServerAddress: "127.0.0.1:8080",
+		StoreInterval: time.Duration(300 * time.Second),
+		StoreFile:     "./tmp/devops-metrics-db.json",
+		Restore:       false,
+		Key:           "",
+	}
 	cfg.flagsRead()
 	//env config
 	cfg.envRead()
