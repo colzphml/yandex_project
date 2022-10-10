@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"flag"
@@ -27,9 +28,63 @@ type AgentConfig struct {
 	Metrics        map[string]string `yaml:"Metrics"`                              // Описание метрик, собираемых из runtime
 	Key            string            `yaml:"Key" env:"KEY"`                        // Ключ для подписи данных
 	ServerAddress  string            `yaml:"ServerAddress" env:"ADDRESS"`          // Адрес сервера обработки метрик
+	ConfigFile     string            `env:"CONFIG"`                                // Адрес файла конфигурации в формате JSON
 	PollInterval   time.Duration     `yaml:"PollInterval" env:"POLL_INTERVAL"`     // Интервал сбора метрик агентом
 	ReportInterval time.Duration     `yaml:"ReportInterval" env:"REPORT_INTERVAL"` // Интервал отправки данных на сервер
 	PublicKey      *rsa.PublicKey    // Публичный ключ
+}
+
+func (cfg *AgentConfig) UnmarshalJSON(data []byte) error {
+	type AgentConfigAlias AgentConfig
+	AliasValue := &struct {
+		*AgentConfigAlias
+		PublicKey      string `json:"crypto_key"`
+		PollInterval   string `json:"poll_interval"`
+		ReportInterval string `json:"report_interval"`
+	}{
+		AgentConfigAlias: (*AgentConfigAlias)(cfg),
+	}
+	if err := json.Unmarshal(data, AliasValue); err != nil {
+		return err
+	}
+	if AliasValue.PublicKey != "" {
+		pk, err := getPublicKey(AliasValue.PublicKey)
+		if err != nil {
+			log.Error().Err(err).Msg("cannot get private key")
+			return err
+		}
+		cfg.PublicKey = pk
+	}
+	if AliasValue.PollInterval != "" {
+		dur, err := time.ParseDuration(AliasValue.PollInterval)
+		if err != nil {
+			log.Error().Err(err).Msg("cannot parse time duration")
+			return err
+		}
+		cfg.PollInterval = dur
+	}
+	if AliasValue.ReportInterval != "" {
+		dur, err := time.ParseDuration(AliasValue.ReportInterval)
+		if err != nil {
+			log.Error().Err(err).Msg("cannot parse time duration")
+			return err
+		}
+		cfg.ReportInterval = dur
+	}
+	return nil
+}
+
+// jsonRead - считывает JSON-файл конфигурации с названием из параметра c/config или переменной окружения CONFIG и заполняет структуру AgentConfig.
+func (cfg *AgentConfig) jsonRead(file string) {
+	jfile, err := os.ReadFile(file)
+	if err != nil {
+		log.Error().Err(err).Msg("file open trouble")
+		return
+	}
+	err = json.Unmarshal(jfile, &cfg)
+	if err != nil {
+		log.Error().Err(err).Msg("parse json err")
+	}
 }
 
 // yamlRead - считывает yaml-файл конфигурации с названием "agent_config.yaml" и заполняет структуру AgentConfig.
@@ -107,6 +162,18 @@ func (cfg *AgentConfig) flagsRead() {
 		}
 		return nil
 	})
+	flag.Func("c", "config JSON file path, example: -f \"/cfg.json\"", func(flagValue string) error {
+		if flagValue != "" {
+			cfg.ConfigFile = flagValue
+		}
+		return nil
+	})
+	flag.Func("config", "config JSON file path, example: -f \"/cfg.json\"", func(flagValue string) error {
+		if flagValue != "" {
+			cfg.ConfigFile = flagValue
+		}
+		return nil
+	})
 	flag.Parse()
 }
 
@@ -152,12 +219,16 @@ func LoadAgentConfig() *AgentConfig {
 			"TotalAlloc":    "gauge",
 		},
 	}
-	//yaml config
-	cfg.yamlRead("agent_config.yaml")
 	//flags config
 	cfg.flagsRead()
 	//env config
 	cfg.envRead()
+	if cfg.ConfigFile != "" {
+		//json config
+		cfg.jsonRead(cfg.ConfigFile)
+		flag.Parse()
+		cfg.envRead()
+	}
 	return cfg
 }
 

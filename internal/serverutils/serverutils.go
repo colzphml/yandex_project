@@ -5,6 +5,7 @@ package serverutils
 import (
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"flag"
@@ -23,13 +24,58 @@ var log = zerolog.New(LogConfig()).With().Timestamp().Str("component", "serverut
 
 // ServerConfig - конфигурация сервера для старта.
 type ServerConfig struct {
-	DBDSN         string          `yaml:"DBDSN" env:"DATABASE_DSN"`           // URL для подключения к Postgres
-	Key           string          `yaml:"Key" env:"KEY"`                      // Ключ для подписи данных
-	ServerAddress string          `yaml:"ServerAddress" env:"ADDRESS"`        // Адрес, по которому будут доступны endpoints
-	StoreFile     string          `yaml:"StoreFile" env:"STORE_FILE"`         // Адрес файла для хранения метрик
-	Restore       bool            `yaml:"Restore" env:"RESTORE"`              // При true - значения метрик в памяти сервера восстановится из хранилища, при false - в памяти будет пустое хранилище
-	StoreInterval time.Duration   `yaml:"StoreInterval" env:"STORE_INTERVAL"` // Интервал сохраниения данных при использовании файла как хранилища
+	DBDSN         string          `yaml:"DBDSN" env:"DATABASE_DSN" json:"database_dsn"`             // URL для подключения к Postgres
+	Key           string          `yaml:"Key" env:"KEY"`                                            // Ключ для подписи данных
+	ServerAddress string          `yaml:"ServerAddress" env:"ADDRESS" json:"address"`               // Адрес, по которому будут доступны endpoints
+	StoreFile     string          `yaml:"StoreFile" env:"STORE_FILE" json:"store_file"`             // Адрес файла для хранения метрик
+	ConfigFile    string          `env:"CONFIG"`                                                    // Адрес файла конфигурации в формате JSON
+	Restore       bool            `yaml:"Restore" env:"RESTORE" json:"restore"`                     // При true - значения метрик в памяти сервера восстановится из хранилища, при false - в памяти будет пустое хранилище
+	StoreInterval time.Duration   `yaml:"StoreInterval" env:"STORE_INTERVAL" json:"store_interval"` // Интервал сохраниения данных при использовании файла как хранилища
 	PrivateKey    *rsa.PrivateKey // приватный ключ
+}
+
+func (cfg *ServerConfig) UnmarshalJSON(data []byte) error {
+	type ServerConfigAlias ServerConfig
+	AliasValue := &struct {
+		*ServerConfigAlias
+		PrivateKey    string `json:"crypto_key"`
+		StoreInterval string `json:"store_interval"`
+	}{
+		ServerConfigAlias: (*ServerConfigAlias)(cfg),
+	}
+	if err := json.Unmarshal(data, AliasValue); err != nil {
+		return err
+	}
+	if AliasValue.PrivateKey != "" {
+		pk, err := getPrivateKey(AliasValue.PrivateKey)
+		if err != nil {
+			log.Error().Err(err).Msg("cannot get private key")
+			return err
+		}
+		cfg.PrivateKey = pk
+	}
+	if AliasValue.StoreInterval != "" {
+		dur, err := time.ParseDuration(AliasValue.StoreInterval)
+		if err != nil {
+			log.Error().Err(err).Msg("cannot parse time duration")
+			return err
+		}
+		cfg.StoreInterval = dur
+	}
+	return nil
+}
+
+// jsonRead - считывает JSON-файл конфигурации с названием из параметра c/config или переменной окружения CONFIG и заполняет структуру ServerConfig.
+func (cfg *ServerConfig) jsonRead(file string) {
+	jfile, err := os.ReadFile(file)
+	if err != nil {
+		log.Error().Err(err).Msg("file open trouble")
+		return
+	}
+	err = json.Unmarshal(jfile, &cfg)
+	if err != nil {
+		log.Error().Err(err).Msg("parse json err")
+	}
 }
 
 // yamlRead - считывает yaml-файл конфигурации с названием "server_config.yaml" и заполняет структуру ServerConfig.
@@ -119,29 +165,38 @@ func (cfg *ServerConfig) flagsRead() {
 		}
 		return nil
 	})
+	flag.Func("c", "config JSON file path, example: -f \"/cfg.json\"", func(flagValue string) error {
+		if flagValue != "" {
+			cfg.ConfigFile = flagValue
+		}
+		return nil
+	})
+	flag.Func("config", "config JSON file path, example: -f \"/cfg.json\"", func(flagValue string) error {
+		if flagValue != "" {
+			cfg.ConfigFile = flagValue
+		}
+		return nil
+	})
 	flag.Parse()
 }
 
 // LoadServerConfig - создает ServerConfig и заполняет его в следующем порядке:
 //
-// Значение по умолчанию -> YAML-файл -> переменные окружения -> флаги запуска.
+// Значение по умолчанию -> json-файл -> переменные окружения -> флаги запуска.
 //
 // То, что находится правее в списке - будет в приоритете над тем, что левее.
 func LoadServerConfig() *ServerConfig {
-	//default config
-	cfg := &ServerConfig{
-		ServerAddress: "127.0.0.1:8080",
-		StoreInterval: time.Duration(300 * time.Second),
-		StoreFile:     "./tmp/devops-metrics-db.json",
-		Restore:       false,
-		Key:           "",
-	}
-	//yaml config
-	cfg.yamlRead("server_config.yaml")
 	//flags config
+	cfg := &ServerConfig{}
 	cfg.flagsRead()
 	//env config
 	cfg.envRead()
+	if cfg.ConfigFile != "" {
+		//json config
+		cfg.jsonRead(cfg.ConfigFile)
+		flag.Parse()
+		cfg.envRead()
+	}
 	return cfg
 }
 
