@@ -34,6 +34,9 @@ type AgentConfig struct {
 }
 
 func (cfg *AgentConfig) UnmarshalJSON(data []byte) error {
+	// Этот тип вводится для того, что бы не получить рекурсию в вызове анмаршаллера.
+	// Если укажем в качестве типа родной AgentConfig, так как для него указана функция JSONUnmarshal, при обработке элемента структуры будет снова вызываться эта же функция и так далее.
+	// Это описано в уроках на курсе, где разбирается работа с JSON
 	type AgentConfigAlias AgentConfig
 	AliasValue := &struct {
 		*AgentConfigAlias
@@ -63,6 +66,9 @@ func (cfg *AgentConfig) UnmarshalJSON(data []byte) error {
 		cfg.PollInterval = dur
 	}
 	if AliasValue.ReportInterval != "" {
+		// Да, можно было сделать тип type Duration time.Duration, но мне не нравится такой подход.
+		// Изначально у меня вообще были типы type Gauge float64 и type Counter int64, но при работе с ними было много неудобств, так как они не реализуются большинство стандартных интерфейсов
+		// Поэтому я от этой идеи отказался и в том числе здесь я просто описал как парсить этот тип в переопределенном анмаршаллере
 		dur, err := time.ParseDuration(AliasValue.ReportInterval)
 		if err != nil {
 			log.Error().Err(err).Msg("cannot parse time duration")
@@ -75,6 +81,10 @@ func (cfg *AgentConfig) UnmarshalJSON(data []byte) error {
 
 // jsonRead - считывает JSON-файл конфигурации с названием из параметра c/config или переменной окружения CONFIG и заполняет структуру AgentConfig.
 func (cfg *AgentConfig) jsonRead(file string) {
+	// Да, данный тип не возвращает ошибку, но пишет ошибку в лог! Я подходил с точки зрения пользователя:
+	// Пользователь может наплевать на корректный json файл, а использовать только флаги или переменные среды в контейнерах.
+	// И если он унаследовал от кого то неправильный конфиг - это не должно заставлять идти его и править, когда он ему не нужен.
+	// А если он все же захочет использовать JSON - у меня логируются параметры запуска, что бы он мог понять с какими в конечном счете параметрами сервис запущен.
 	jfile, err := os.ReadFile(file)
 	if err != nil {
 		log.Error().Err(err).Msg("file open trouble")
