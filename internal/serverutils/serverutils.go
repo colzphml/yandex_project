@@ -206,8 +206,6 @@ func getPrivateKey(file string) (*rsa.PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Здесь игнорируется не ошибка, а слайс байт вывода, если парсер не нашел pem блок. Этот слайс мне не интересен
-	// func Decode(data []byte) (p *Block, rest []byte)
 	block, _ := pem.Decode(byte)
 	if block == nil {
 		return nil, errors.New("failed decode pem")

@@ -1,4 +1,4 @@
-// Модуль metricsagent содержит специфические для агента методы по работе с метриками.
+// Package metricsagent содержит специфические для агента методы по работе с метриками.
 package metricsagent
 
 import (
@@ -279,19 +279,19 @@ func SendListJSONMetrics(cfg *agentutils.AgentConfig, repo *MetricRepo, client *
 		log.Error().Err(err).Msg("failed marshall json")
 		return
 	}
-	if cfg.PublicKey != nil {
-		postBody, err = rsa.EncryptOAEP(
-			sha256.New(),
-			rnd.Reader,
-			cfg.PublicKey,
-			postBody,
-			nil,
-		)
-		if err != nil {
-			log.Error().Err(err).Msg("failed encrypt body (list)")
-			return
-		}
-	}
+	// if cfg.PublicKey != nil {
+	// 	postBody, err = rsa.EncryptOAEP(
+	// 		sha256.New(),
+	// 		rnd.Reader,
+	// 		cfg.PublicKey,
+	// 		postBody,
+	// 		nil,
+	// 	)
+	// 	if err != nil {
+	// 		log.Error().Err(err).Msg("failed encrypt body (list)")
+	// 		return
+	// 	}
+	// }
 	err = agentutils.HTTPSendJSON(client, urlPrefix, postBody)
 	if err != nil {
 		log.Error().Err(err).Msg("failed send with body (list)")
@@ -307,7 +307,7 @@ func SendWorker(ctx context.Context, wg *sync.WaitGroup, cfg *agentutils.AgentCo
 		select {
 		case <-tickerReport.C:
 			SendJSONMetrics(cfg, repo, client)
-			//SendListJSONMetrics(cfg, repo, client)
+			// SendListJSONMetrics(cfg, repo, client)
 		case <-ctx.Done():
 			tickerReport.Stop()
 			log.Info().Msg("stopped sendWorker")
