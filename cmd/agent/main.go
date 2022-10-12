@@ -30,9 +30,9 @@ func main() {
 		}()
 	*/
 	log.Info().Msg("agent started")
-	log.Info().Msg(buildVersion)
-	log.Info().Msg(buildDate)
-	log.Info().Msg(buildCommit)
+	log.Info().Msg("Build version: " + buildVersion)
+	log.Info().Msg("Build date: " + buildDate)
+	log.Info().Msg("Build commit: " + buildCommit)
 	now := time.Now()
 	//read config file
 	cfg := agentutils.LoadAgentConfig()

@@ -36,7 +36,10 @@ func HTTPServer(ctx context.Context, cfg *serverutils.ServerConfig, repo storage
 	r.Use(middleware.Recoverer)
 	r.Post("/update/{metric_type}/{metric_name}/{metric_value}", handlers.SaveHandler(ctx, repo, cfg))
 	r.Get("/value/{metric_type}/{metric_name}", handlers.GetValueHandler(ctx, repo))
-	r.Post("/update/", handlers.SaveJSONHandler(ctx, repo, cfg))
+	r.Route("/update", func(r chi.Router) {
+		r.Use(mdw.RSAHandler(cfg))
+		r.Post("/", handlers.SaveJSONHandler(ctx, repo, cfg))
+	})
 	r.Post("/updates/", handlers.SaveJSONArrayHandler(ctx, repo, cfg))
 	r.Post("/value/", handlers.GetJSONValueHandler(ctx, repo, cfg))
 	r.Get("/ping", handlers.PingHandler(ctx, repo, cfg))

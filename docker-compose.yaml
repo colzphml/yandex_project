@@ -33,6 +33,7 @@ services:
       REPORT_INTERVAL: "10s"
       KEY: "testkey"
       TZ: "Europe/Moscow"
+      CRYPTO_KEY: "/public.pem"
     depends_on:
       server:
         condition: service_started
@@ -52,6 +53,7 @@ services:
       KEY: "testkey"
       DATABASE_DSN: "postgres://puser:ppaswd@postgres:5432/yandex"
       TZ: "Europe/Moscow"
+      CRYPTO_KEY: "/private.pem"
     depends_on:
       postgres:
         condition: service_healthy

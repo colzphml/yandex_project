@@ -1,9 +1,14 @@
-// Модуль agentutils содержит в себе методы для работы агента, не зависящие от других модулей агента.
+// Package agentutils содержит в себе методы для работы агента, не зависящие от других модулей агента.
 // Содержит в себе структуру для хранения конфигурации запуска агента и методы для чтения параметров запуска.
 package agentutils
 
 import (
 	"bytes"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/json"
+	"encoding/pem"
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -13,30 +18,77 @@ import (
 
 	"github.com/caarlos0/env"
 	"github.com/rs/zerolog"
-	"gopkg.in/yaml.v3"
 )
 
 var log = zerolog.New(LogConfig()).With().Timestamp().Str("component", "agentutils").Logger()
 
 // AgentConfig - конфигурация агента для старта.
 type AgentConfig struct {
-	Metrics        map[string]string `yaml:"Metrics"`                              // Описание метрик, собираемых из runtime
-	Key            string            `yaml:"Key" env:"KEY"`                        // Ключ для подписи данных
-	ServerAddress  string            `yaml:"ServerAddress" env:"ADDRESS"`          // Адрес сервера обработки метрик
-	PollInterval   time.Duration     `yaml:"PollInterval" env:"POLL_INTERVAL"`     // Интервал сбора метрик агентом
-	ReportInterval time.Duration     `yaml:"ReportInterval" env:"REPORT_INTERVAL"` // Интервал отправки данных на сервер
+	Metrics        map[string]string // Описание метрик, собираемых из runtime
+	Key            string            `env:"KEY"`                    // Ключ для подписи данных
+	ServerAddress  string            `env:"ADDRESS" json:"address"` // Адрес сервера обработки метрик
+	ConfigFile     string            `env:"CONFIG"`                 // Адрес файла конфигурации в формате JSON
+	PollInterval   time.Duration     `env:"POLL_INTERVAL"`          // Интервал сбора метрик агентом
+	ReportInterval time.Duration     `env:"REPORT_INTERVAL"`        // Интервал отправки данных на сервер
+	PublicKey      *rsa.PublicKey    // Публичный ключ
 }
 
-// yamlRead - считывает yaml-файл конфигурации с названием "agent_config.yaml" и заполняет структуру AgentConfig.
-func (cfg *AgentConfig) yamlRead(file string) {
-	yfile, err := os.ReadFile(file)
-	if err != nil {
-		log.Error().Err(err).Msg("cannot open yaml file")
-	} else {
-		err = yaml.Unmarshal(yfile, &cfg)
+func (cfg *AgentConfig) UnmarshalJSON(data []byte) error {
+	// Этот тип вводится для того, что бы не получить рекурсию в вызове анмаршаллера.
+	// Если укажем в качестве типа родной AgentConfig, так как для него указана функция JSONUnmarshal, при обработке элемента структуры будет снова вызываться эта же функция и так далее.
+	// Это описано в уроках на курсе, где разбирается работа с JSON
+	type AgentConfigAlias AgentConfig
+	AliasValue := &struct {
+		*AgentConfigAlias
+		PublicKey      string `json:"crypto_key"`
+		PollInterval   string `json:"poll_interval"`
+		ReportInterval string `json:"report_interval"`
+	}{
+		AgentConfigAlias: (*AgentConfigAlias)(cfg),
+	}
+	if err := json.Unmarshal(data, AliasValue); err != nil {
+		return err
+	}
+	if AliasValue.PublicKey != "" {
+		pk, err := getPublicKey(AliasValue.PublicKey)
 		if err != nil {
-			log.Error().Err(err).Msg("cannot parse yaml file")
+			log.Error().Err(err).Msg("cannot get private key")
+			return err
 		}
+		cfg.PublicKey = pk
+	}
+	if AliasValue.PollInterval != "" {
+		dur, err := time.ParseDuration(AliasValue.PollInterval)
+		if err != nil {
+			log.Error().Err(err).Msg("cannot parse time duration")
+			return err
+		}
+		cfg.PollInterval = dur
+	}
+	if AliasValue.ReportInterval != "" {
+		// Да, можно было сделать тип type Duration time.Duration, но мне не нравится такой подход.
+		// Изначально у меня вообще были типы type Gauge float64 и type Counter int64, но при работе с ними было много неудобств, так как они не реализуются большинство стандартных интерфейсов
+		// Поэтому я от этой идеи отказался и в том числе здесь я просто описал как парсить этот тип в переопределенном анмаршаллере
+		dur, err := time.ParseDuration(AliasValue.ReportInterval)
+		if err != nil {
+			log.Error().Err(err).Msg("cannot parse time duration")
+			return err
+		}
+		cfg.ReportInterval = dur
+	}
+	return nil
+}
+
+// jsonRead - считывает JSON-файл конфигурации с названием из параметра c/config или переменной окружения CONFIG и заполняет структуру AgentConfig.
+func (cfg *AgentConfig) jsonRead(file string) {
+	jfile, err := os.ReadFile(file)
+	if err != nil {
+		log.Error().Err(err).Msg("file open trouble")
+		return
+	}
+	err = json.Unmarshal(jfile, &cfg)
+	if err != nil {
+		log.Error().Err(err).Msg("parse json err")
 	}
 }
 
@@ -45,6 +97,15 @@ func (cfg *AgentConfig) envRead() {
 	err := env.Parse(cfg)
 	if err != nil {
 		log.Error().Err(err).Msg("cannot read environment variables")
+	}
+	keypath := os.Getenv("CRYPTO_KEY")
+	if keypath != "" {
+		pk, err := getPublicKey(keypath)
+		if err != nil {
+			log.Error().Err(err).Msg("cannot get public key")
+			return
+		}
+		cfg.PublicKey = pk
 	}
 }
 
@@ -82,12 +143,35 @@ func (cfg *AgentConfig) flagsRead() {
 		}
 		return nil
 	})
+	flag.Func("crypto-key", "path to public key", func(flagValue string) error {
+		if flagValue != "" {
+			pk, err := getPublicKey(flagValue)
+			if err != nil {
+				log.Error().Err(err).Msg("cannot get public key")
+				return err
+			}
+			cfg.PublicKey = pk
+		}
+		return nil
+	})
+	flag.Func("c", "config JSON file path, example: -f \"/cfg.json\"", func(flagValue string) error {
+		if flagValue != "" {
+			cfg.ConfigFile = flagValue
+		}
+		return nil
+	})
+	flag.Func("config", "config JSON file path, example: -f \"/cfg.json\"", func(flagValue string) error {
+		if flagValue != "" {
+			cfg.ConfigFile = flagValue
+		}
+		return nil
+	})
 	flag.Parse()
 }
 
 // LoadAgentConfig - создает AgentConfig и заполняет его в следующем порядке:
 //
-// Значение по умолчанию -> YAML-файл -> переменные окружения -> флаги запуска.
+// Значение по умолчанию -> JSON-файл -> переменные окружения -> флаги запуска.
 //
 // То, что находится правее в списке - будет в приоритете над тем, что левее.
 func LoadAgentConfig() *AgentConfig {
@@ -127,12 +211,16 @@ func LoadAgentConfig() *AgentConfig {
 			"TotalAlloc":    "gauge",
 		},
 	}
-	//yaml config
-	cfg.yamlRead("agent_config.yaml")
 	//flags config
 	cfg.flagsRead()
 	//env config
 	cfg.envRead()
+	if cfg.ConfigFile != "" {
+		//json config
+		cfg.jsonRead(cfg.ConfigFile)
+		flag.Parse()
+		cfg.envRead()
+	}
 	return cfg
 }
 
@@ -177,4 +265,20 @@ func LogConfig() zerolog.ConsoleWriter {
 		return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
 	}
 	return output
+}
+
+func getPublicKey(file string) (*rsa.PublicKey, error) {
+	byte, err := os.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+	block, _ := pem.Decode(byte)
+	if block == nil {
+		return nil, errors.New("failed decode pem")
+	}
+	pk, err := x509.ParsePKCS1PublicKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	return pk, nil
 }

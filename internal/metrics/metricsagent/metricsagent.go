@@ -1,8 +1,11 @@
-// Модуль metricsagent содержит специфические для агента методы по работе с метриками.
+// Package metricsagent содержит специфические для агента методы по работе с метриками.
 package metricsagent
 
 import (
 	"context"
+	rnd "crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"math/rand"
@@ -229,16 +232,29 @@ func SendMetrics(srv string, repo *MetricRepo, client *http.Client) {
 }
 
 // SendJSONMetrics - формирует из метрики запрос на отправку данных серверу через json-body.
-func SendJSONMetrics(srv string, key string, repo *MetricRepo, client *http.Client) {
-	urlPrefix := "http://" + srv + "/update/"
+func SendJSONMetrics(cfg *agentutils.AgentConfig, repo *MetricRepo, client *http.Client) {
+	urlPrefix := "http://" + cfg.ServerAddress + "/update/"
 	repo.mu.Lock()
 	defer repo.mu.Unlock()
 	for _, v := range repo.db {
-		v.FillHash(key)
+		v.FillHash(cfg.Key)
 		postBody, err := json.Marshal(v)
 		if err != nil {
 			log.Error().Err(err).Msg("failed marshall json")
 			continue
+		}
+		if cfg.PublicKey != nil {
+			postBody, err = rsa.EncryptOAEP(
+				sha256.New(),
+				rnd.Reader,
+				cfg.PublicKey,
+				postBody,
+				nil,
+			)
+			if err != nil {
+				log.Error().Err(err).Msg("failed encrypt body (list)")
+				return
+			}
 		}
 		err = agentutils.HTTPSendJSON(client, urlPrefix, postBody)
 		if err != nil {
@@ -249,22 +265,37 @@ func SendJSONMetrics(srv string, key string, repo *MetricRepo, client *http.Clie
 }
 
 // SendListJSONMetrics - формирует body из набора метрик запрос на отправку данных серверу через array json.
-func SendListJSONMetrics(srv string, key string, repo *MetricRepo, client *http.Client) {
-	urlPrefix := "http://" + srv + "/updates/"
+func SendListJSONMetrics(cfg *agentutils.AgentConfig, repo *MetricRepo, client *http.Client) {
+	urlPrefix := "http://" + cfg.ServerAddress + "/updates/"
 	var list []metrics.Metrics
 	repo.mu.Lock()
 	defer repo.mu.Unlock()
 	for _, v := range repo.db {
-		v.FillHash(key)
+		v.FillHash(cfg.Key)
 		list = append(list, v)
 	}
 	postBody, err := json.Marshal(list)
 	if err != nil {
 		log.Error().Err(err).Msg("failed marshall json")
+		return
 	}
+	// if cfg.PublicKey != nil {
+	// 	postBody, err = rsa.EncryptOAEP(
+	// 		sha256.New(),
+	// 		rnd.Reader,
+	// 		cfg.PublicKey,
+	// 		postBody,
+	// 		nil,
+	// 	)
+	// 	if err != nil {
+	// 		log.Error().Err(err).Msg("failed encrypt body (list)")
+	// 		return
+	// 	}
+	// }
 	err = agentutils.HTTPSendJSON(client, urlPrefix, postBody)
 	if err != nil {
 		log.Error().Err(err).Msg("failed send with body (list)")
+		return
 	}
 }
 
@@ -275,7 +306,8 @@ func SendWorker(ctx context.Context, wg *sync.WaitGroup, cfg *agentutils.AgentCo
 	for {
 		select {
 		case <-tickerReport.C:
-			SendListJSONMetrics(cfg.ServerAddress, cfg.Key, repo, client)
+			SendJSONMetrics(cfg, repo, client)
+			// SendListJSONMetrics(cfg, repo, client)
 		case <-ctx.Done():
 			tickerReport.Stop()
 			log.Info().Msg("stopped sendWorker")
