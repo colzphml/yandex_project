@@ -46,6 +46,10 @@ func GzipHandle(next http.Handler) http.Handler {
 func RSAHandler(cfg *serverutils.ServerConfig) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			if cfg.PrivateKey == nil {
+				next.ServeHTTP(rw, r)
+				return
+			}
 			body, err := io.ReadAll(r.Body)
 			if err != nil {
 				http.Error(rw, err.Error(), http.StatusBadRequest)
