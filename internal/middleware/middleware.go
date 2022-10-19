@@ -7,6 +7,7 @@ import (
 	"crypto"
 	"crypto/rsa"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 
@@ -62,6 +63,33 @@ func RSAHandler(cfg *serverutils.ServerConfig) func(http.Handler) http.Handler {
 			}
 			reader := io.NopCloser(bytes.NewBuffer(decryptedBytes))
 			r.Body = reader
+			next.ServeHTTP(rw, r)
+		})
+	}
+}
+
+// SubNet - middleware для расшифровки данных
+func SubNet(cfg *serverutils.ServerConfig) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			if cfg.TrustedSubnet == nil {
+				next.ServeHTTP(rw, r)
+				return
+			}
+			realIP := r.Header.Get("X-Real-IP")
+			if realIP == "" {
+				http.Error(rw, "headers not contain X-Real-IP", http.StatusBadRequest)
+				return
+			}
+			ip := net.ParseIP(realIP)
+			if ip == nil {
+				http.Error(rw, "cannot parse X-Real-IP", http.StatusBadRequest)
+				return
+			}
+			if !cfg.TrustedSubnet.Contains(ip) {
+				http.Error(rw, "request not from trusteed IP", http.StatusBadRequest)
+				return
+			}
 			next.ServeHTTP(rw, r)
 		})
 	}

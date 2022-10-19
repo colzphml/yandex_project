@@ -10,6 +10,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -31,6 +32,7 @@ type ServerConfig struct {
 	Restore       bool            `env:"RESTORE" json:"restore"`               // При true - значения метрик в памяти сервера восстановится из хранилища, при false - в памяти будет пустое хранилище
 	StoreInterval time.Duration   `env:"STORE_INTERVAL" json:"store_interval"` // Интервал сохраниения данных при использовании файла как хранилища
 	PrivateKey    *rsa.PrivateKey // приватный ключ
+	TrustedSubnet *net.IPNet      `json:"trusted_subnet"` // Подсеть доверенных адресов
 }
 
 func (cfg *ServerConfig) UnmarshalJSON(data []byte) error {
@@ -39,6 +41,7 @@ func (cfg *ServerConfig) UnmarshalJSON(data []byte) error {
 		*ServerConfigAlias
 		PrivateKey    string `json:"crypto_key"`
 		StoreInterval string `json:"store_interval"`
+		TrustedSubnet string `json:"trusted_subnet"`
 	}{
 		ServerConfigAlias: (*ServerConfigAlias)(cfg),
 	}
@@ -60,6 +63,14 @@ func (cfg *ServerConfig) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		cfg.StoreInterval = dur
+	}
+	if AliasValue.TrustedSubnet != "" {
+		_, subnet, err := net.ParseCIDR(AliasValue.TrustedSubnet)
+		if err != nil {
+			log.Error().Err(err).Msg("cannot parse trusted subnet")
+			return err
+		}
+		cfg.TrustedSubnet = subnet
 	}
 	return nil
 }
@@ -91,6 +102,15 @@ func (cfg *ServerConfig) envRead() {
 			return
 		}
 		cfg.PrivateKey = pk
+	}
+	subnet := os.Getenv("TRUSTED_SUBNET")
+	if subnet != "" {
+		_, subn, err := net.ParseCIDR(subnet)
+		if err != nil {
+			log.Error().Err(err).Msg("cannot parse trusted subnet")
+			return
+		}
+		cfg.TrustedSubnet = subn
 	}
 }
 
@@ -151,15 +171,26 @@ func (cfg *ServerConfig) flagsRead() {
 		}
 		return nil
 	})
-	flag.Func("c", "config JSON file path, example: -f \"/cfg.json\"", func(flagValue string) error {
+	flag.Func("c", "config JSON file path, example: -c \"/cfg.json\"", func(flagValue string) error {
 		if flagValue != "" {
 			cfg.ConfigFile = flagValue
 		}
 		return nil
 	})
-	flag.Func("config", "config JSON file path, example: -f \"/cfg.json\"", func(flagValue string) error {
+	flag.Func("config", "config JSON file path, example: -config \"/cfg.json\"", func(flagValue string) error {
 		if flagValue != "" {
 			cfg.ConfigFile = flagValue
+		}
+		return nil
+	})
+	flag.Func("t", "trusted subnet, for example: -t \"/192.168.1.0/24\"", func(flagValue string) error {
+		if flagValue != "" {
+			_, subn, err := net.ParseCIDR(flagValue)
+			if err != nil {
+				log.Error().Err(err).Msg("cannot parse trusted subnet")
+				return err
+			}
+			cfg.TrustedSubnet = subn
 		}
 		return nil
 	})

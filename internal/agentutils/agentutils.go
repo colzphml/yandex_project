@@ -11,6 +11,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -231,6 +232,7 @@ func HTTPSend(client *http.Client, url string) error {
 		return err
 	}
 	request.Header.Set("Content-Type", "text/plain")
+	request.Header.Set("X-Real-IP", GetLocalIP())
 	response, err := client.Do(request)
 	if err != nil {
 		return err
@@ -247,6 +249,7 @@ func HTTPSendJSON(client *http.Client, url string, postBody []byte) error {
 		return err
 	}
 	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-Real-IP", GetLocalIP())
 	response, err := client.Do(request)
 	if err != nil {
 		return err
@@ -281,4 +284,19 @@ func getPublicKey(file string) (*rsa.PublicKey, error) {
 		return nil, err
 	}
 	return pk, nil
+}
+
+func GetLocalIP() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return ""
+	}
+	for _, address := range addrs {
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP.String()
+			}
+		}
+	}
+	return ""
 }

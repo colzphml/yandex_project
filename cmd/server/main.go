@@ -30,6 +30,7 @@ var (
 func HTTPServer(ctx context.Context, cfg *serverutils.ServerConfig, repo storage.Repositorier) *http.Server {
 	r := chi.NewRouter()
 	r.Use(mdw.GzipHandle)
+	r.Use(mdw.SubNet(cfg))
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
