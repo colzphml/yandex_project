@@ -57,7 +57,7 @@ func GRPCServer(ctx context.Context, cfg *serverutils.ServerConfig, repo storage
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed initialize gRPC server")
 	}
-	s := grpc.NewServer()
+	s := grpc.NewServer(grpc.UnaryInterceptor(mdw.SubNetGRPCInterceptor(cfg)))
 	pb.RegisterMetricsServer(s, &cgrpc.MetricsServer{
 		Cfg:  cfg,
 		Repo: repo,

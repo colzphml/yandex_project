@@ -26,6 +26,7 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 )
 
 // MetricRepo - хранилище метрик для сбора (потокобезопасное, так как есть 2 независимых коллектора - Runtime и System).
@@ -313,6 +314,8 @@ func SendGRPC(ctx context.Context, cfg *agentutils.AgentConfig, repo *MetricRepo
 	}
 	var req pb.SaveListMetricsRequest
 	req.Metric = result
+	md := metadata.New(map[string]string{"X-Real-IP": agentutils.GetLocalIP()})
+	ctx = metadata.NewOutgoingContext(ctx, md)
 	resp, err := conn.SaveList(ctx, &req)
 	if err != nil {
 		log.Error().Err(err).Msg("failed send via grpc")
