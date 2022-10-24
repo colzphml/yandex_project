@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/colzphml/yandex_project/internal/agentutils"
+	"github.com/colzphml/yandex_project/internal/app/agent/agentutils"
 	"github.com/colzphml/yandex_project/internal/metrics/metricsagent"
 	"github.com/rs/zerolog"
 )

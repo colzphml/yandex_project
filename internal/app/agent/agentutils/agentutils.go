@@ -25,13 +25,14 @@ var log = zerolog.New(LogConfig()).With().Timestamp().Str("component", "agentuti
 
 // AgentConfig - конфигурация агента для старта.
 type AgentConfig struct {
-	Metrics        map[string]string // Описание метрик, собираемых из runtime
-	Key            string            `env:"KEY"`                    // Ключ для подписи данных
-	ServerAddress  string            `env:"ADDRESS" json:"address"` // Адрес сервера обработки метрик
-	ConfigFile     string            `env:"CONFIG"`                 // Адрес файла конфигурации в формате JSON
-	PollInterval   time.Duration     `env:"POLL_INTERVAL"`          // Интервал сбора метрик агентом
-	ReportInterval time.Duration     `env:"REPORT_INTERVAL"`        // Интервал отправки данных на сервер
-	PublicKey      *rsa.PublicKey    // Публичный ключ
+	Metrics           map[string]string // Описание метрик, собираемых из runtime
+	Key               string            `env:"KEY"`                              // Ключ для подписи данных
+	ServerAddress     string            `env:"ADDRESS" json:"address"`           // Адрес сервера обработки метрик
+	ServerAddressGRPC string            `env:"ADDRESS_GRPC" json:"address_grpc"` // Адрес, по которому будут доступны endpoints
+	ConfigFile        string            `env:"CONFIG"`                           // Адрес файла конфигурации в формате JSON
+	PollInterval      time.Duration     `env:"POLL_INTERVAL"`                    // Интервал сбора метрик агентом
+	ReportInterval    time.Duration     `env:"REPORT_INTERVAL"`                  // Интервал отправки данных на сервер
+	PublicKey         *rsa.PublicKey    // Публичный ключ
 }
 
 func (cfg *AgentConfig) UnmarshalJSON(data []byte) error {
@@ -164,6 +165,12 @@ func (cfg *AgentConfig) flagsRead() {
 	flag.Func("config", "config JSON file path, example: -f \"/cfg.json\"", func(flagValue string) error {
 		if flagValue != "" {
 			cfg.ConfigFile = flagValue
+		}
+		return nil
+	})
+	flag.Func("g", "server gRPC address like <server>:<port>, example: -a \"127.0.0.1:8080\"", func(flagValue string) error {
+		if flagValue != "" {
+			cfg.ServerAddressGRPC = flagValue
 		}
 		return nil
 	})

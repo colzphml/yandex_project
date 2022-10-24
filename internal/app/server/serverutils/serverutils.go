@@ -24,15 +24,16 @@ var log = zerolog.New(LogConfig()).With().Timestamp().Str("component", "serverut
 
 // ServerConfig - конфигурация сервера для старта.
 type ServerConfig struct {
-	DBDSN         string          `env:"DATABASE_DSN" json:"database_dsn"`     // URL для подключения к Postgres
-	Key           string          `env:"KEY"`                                  // Ключ для подписи данных
-	ServerAddress string          `env:"ADDRESS" json:"address"`               // Адрес, по которому будут доступны endpoints
-	StoreFile     string          `env:"STORE_FILE" json:"store_file"`         // Адрес файла для хранения метрик
-	ConfigFile    string          `env:"CONFIG"`                               // Адрес файла конфигурации в формате JSON
-	Restore       bool            `env:"RESTORE" json:"restore"`               // При true - значения метрик в памяти сервера восстановится из хранилища, при false - в памяти будет пустое хранилище
-	StoreInterval time.Duration   `env:"STORE_INTERVAL" json:"store_interval"` // Интервал сохраниения данных при использовании файла как хранилища
-	PrivateKey    *rsa.PrivateKey // приватный ключ
-	TrustedSubnet *net.IPNet      `json:"trusted_subnet"` // Подсеть доверенных адресов
+	DBDSN             string          `env:"DATABASE_DSN" json:"database_dsn"`     // URL для подключения к Postgres
+	Key               string          `env:"KEY"`                                  // Ключ для подписи данных
+	ServerAddress     string          `env:"ADDRESS" json:"address"`               // Адрес, по которому будут доступны endpoints
+	ServerAddressGRPC string          `env:"ADDRESS_GRPC" json:"address_grpc"`     // Адрес, по которому будут доступны endpoints
+	StoreFile         string          `env:"STORE_FILE" json:"store_file"`         // Адрес файла для хранения метрик
+	ConfigFile        string          `env:"CONFIG"`                               // Адрес файла конфигурации в формате JSON
+	Restore           bool            `env:"RESTORE" json:"restore"`               // При true - значения метрик в памяти сервера восстановится из хранилища, при false - в памяти будет пустое хранилище
+	StoreInterval     time.Duration   `env:"STORE_INTERVAL" json:"store_interval"` // Интервал сохраниения данных при использовании файла как хранилища
+	PrivateKey        *rsa.PrivateKey // приватный ключ
+	TrustedSubnet     *net.IPNet      `json:"trusted_subnet"` // Подсеть доверенных адресов
 }
 
 func (cfg *ServerConfig) UnmarshalJSON(data []byte) error {
@@ -191,6 +192,12 @@ func (cfg *ServerConfig) flagsRead() {
 				return err
 			}
 			cfg.TrustedSubnet = subn
+		}
+		return nil
+	})
+	flag.Func("g", "server gRPC address like <server>:<port>, example: -a \"127.0.0.1:8080\"", func(flagValue string) error {
+		if flagValue != "" {
+			cfg.ServerAddressGRPC = flagValue
 		}
 		return nil
 	})

@@ -9,9 +9,9 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/colzphml/yandex_project/internal/app/server/serverutils"
 	"github.com/colzphml/yandex_project/internal/handlers"
 	mdw "github.com/colzphml/yandex_project/internal/middleware"
-	"github.com/colzphml/yandex_project/internal/serverutils"
 	"github.com/colzphml/yandex_project/internal/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"

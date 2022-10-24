@@ -1,4 +1,4 @@
-// Модуль handlers описывает логику работы endpoints.
+// Package handlers описывает логику работы endpoints.
 package handlers
 
 import (
@@ -10,9 +10,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/colzphml/yandex_project/internal/app/server/serverutils"
 	"github.com/colzphml/yandex_project/internal/metrics"
 	"github.com/colzphml/yandex_project/internal/metrics/metricsserver"
-	"github.com/colzphml/yandex_project/internal/serverutils"
 	"github.com/colzphml/yandex_project/internal/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog"
@@ -144,9 +144,13 @@ func SaveJSONArrayHandler(ctx context.Context, repo storage.Repositorier, cfg *s
 func ListMetricsHandler(ctx context.Context, repo storage.Repositorier, cfg *serverutils.ServerConfig) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		metricList := repo.ListMetrics(ctx)
+		var result []string
+		for _, v := range metricList {
+			result = append(result, v.ID+":"+v.ValueString())
+		}
 		rw.Header().Set("Content-Type", "text/html")
 		rw.WriteHeader(http.StatusOK)
-		_, err := io.WriteString(rw, strings.Join(metricList, "<br>"))
+		_, err := io.WriteString(rw, strings.Join(result, "<br>"))
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return

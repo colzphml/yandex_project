@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/colzphml/yandex_project/internal/serverutils"
+	"github.com/colzphml/yandex_project/internal/app/server/serverutils"
 )
 
 // gzipWriter - новый writer для использования с gzip

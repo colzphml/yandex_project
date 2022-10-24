@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package metrics;
+
+option go_package = "github.com/colzphml/yandex_project/internal/metrics/proto";
+
+message Metric {
+    string id = 1;
+    string mtype = 2;
+    int64 delta = 3;
+    double value = 4;
+    string Hash = 5;
+}
+
+message SaveMetricRequest {
+    Metric metric = 1;
+}
+
+message SaveMetricResponse {
+    string error = 1;
+}
+
+message SaveListMetricsRequest {
+    repeated Metric metric = 1;
+}
+
+message SaveListMetricsResponse {
+    string error = 1;
+}
+
+message GetMetricRequest {
+    string metricName = 1;
+}
+
+message GetMetricResponse {
+    Metric metric = 1;
+    string error = 2;
+}
+
+message GetListMetricRequest {}
+
+message GetListMetricResponse {
+    repeated Metric metric = 1;
+}
+
+message PingRequest {}
+
+message PingResponse {
+    bool ping = 1;
+}
+
+service Metrics {
+    rpc Save(SaveMetricRequest) returns (SaveMetricResponse);
+    rpc SaveList(SaveListMetricsRequest) returns (SaveListMetricsResponse);
+    rpc Get(GetMetricRequest) returns (GetMetricResponse);
+    rpc GetList(GetListMetricRequest) returns (GetListMetricResponse);
+    rpc Ping(PingRequest) returns (PingResponse);
+}

@@ -29,6 +29,7 @@ services:
         COMPONENT: agent
     environment:
       ADDRESS: "server:8080"
+      ADDRESS_GRPC: "server:3200"
       POLL_INTERVAL: "2s"
       REPORT_INTERVAL: "10s"
       KEY: "testkey"
@@ -48,8 +49,9 @@ services:
         COMPONENT: server
     environment:
       ADDRESS: ":8080"
+      ADDRESS_GRPC: ":3200"
       STORE_INTERVAL: "300s"
-      RESTORE: "true"
+      RESTORE: "false"
       KEY: "testkey"
       DATABASE_DSN: "postgres://puser:ppaswd@postgres:5432/yandex"
       TZ: "Europe/Moscow"

@@ -9,9 +9,9 @@ import (
 	"os"
 	"sort"
 
+	"github.com/colzphml/yandex_project/internal/app/server/serverutils"
 	"github.com/colzphml/yandex_project/internal/metrics"
 	"github.com/colzphml/yandex_project/internal/metrics/metricsserver"
-	"github.com/colzphml/yandex_project/internal/serverutils"
 	"github.com/rs/zerolog"
 )
 
@@ -94,13 +94,13 @@ func (m *MetricRepo) SaveListMetric(ctx context.Context, metricarray []metrics.M
 	return counter, nil
 }
 
-func (m *MetricRepo) ListMetrics(ctx context.Context) []string {
-	var list []string
-	for k, v := range m.DB {
-		list = append(list, k+":"+v.ValueString())
+func (m *MetricRepo) ListMetrics(ctx context.Context) []metrics.Metrics {
+	var list []metrics.Metrics
+	for _, v := range m.DB {
+		list = append(list, v)
 	}
 	sort.Slice(list, func(i, j int) bool {
-		return list[i] < list[j]
+		return list[i].ID < list[j].ID
 	})
 	return list
 }
