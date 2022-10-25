@@ -18,9 +18,9 @@ import (
 	"time"
 
 	"github.com/colzphml/yandex_project/internal/app/agent/agentutils"
-	cgrpc "github.com/colzphml/yandex_project/internal/grpc"
 	"github.com/colzphml/yandex_project/internal/metrics"
 	pb "github.com/colzphml/yandex_project/internal/metrics/proto"
+	cgrpc "github.com/colzphml/yandex_project/internal/scenarios/grpc"
 	"github.com/rs/zerolog"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/mem"

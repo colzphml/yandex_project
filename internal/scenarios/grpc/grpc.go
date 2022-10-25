@@ -3,15 +3,29 @@ package grpc
 
 import (
 	"context"
+	"errors"
 
 	"github.com/colzphml/yandex_project/internal/app/server/serverutils"
 	"github.com/colzphml/yandex_project/internal/metrics"
 	pb "github.com/colzphml/yandex_project/internal/metrics/proto"
+	"github.com/colzphml/yandex_project/internal/scenarios"
 	"github.com/colzphml/yandex_project/internal/storage"
-	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+func errMapping(err error) codes.Code {
+	switch {
+	case errors.Is(err, scenarios.ErrStatusBadRequest):
+		return codes.InvalidArgument
+	case errors.Is(err, scenarios.ErrStatusNotFound):
+		return codes.NotFound
+	case errors.Is(err, scenarios.ErrStatusNotImplemented):
+		return codes.Unimplemented
+	default:
+		return codes.Internal
+	}
+}
 
 func ConvertGRPCtoMetric(in *pb.Metric) (metrics.Metrics, error) {
 	metric := metrics.Metrics{
@@ -63,24 +77,9 @@ func (s *MetricsServer) Save(ctx context.Context, in *pb.SaveMetricRequest) (*pb
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	compareHash, err := metric.CompareHash(s.Cfg.Key)
+	err = scenarios.SaveMetric(ctx, s.Repo, s.Cfg, metric, true)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	if !compareHash {
-		return nil, status.Error(codes.Internal, "signature is wrong")
-	}
-	err = s.Repo.SaveMetric(ctx, metric)
-	if err != nil {
-		log.Error().Err(err).Str("can't save metric", metric.ID)
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	if s.Cfg.StoreInterval.Nanoseconds() == 0 {
-		err = s.Repo.DumpMetrics(ctx, s.Cfg)
-		if err != nil {
-			log.Error().Err(err).Str("can't store metric", metric.ID)
-			return nil, status.Error(codes.Internal, err.Error())
-		}
+		return nil, status.Error(errMapping(err), err.Error())
 	}
 	return &resp, nil
 
@@ -95,26 +94,9 @@ func (s *MetricsServer) SaveList(ctx context.Context, in *pb.SaveListMetricsRequ
 		}
 		ms = append(ms, m)
 	}
-	for _, v := range ms {
-		compareHash, err := v.CompareHash(s.Cfg.Key)
-		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-		if !compareHash {
-			return nil, status.Error(codes.Internal, "signature is wrong")
-		}
-	}
-	_, err := s.Repo.SaveListMetric(ctx, ms)
+	_, err := scenarios.SaveArrayMetric(ctx, s.Repo, s.Cfg, ms)
 	if err != nil {
-		log.Error().Err(err).Msg("can't save metrics")
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	if s.Cfg.StoreInterval.Nanoseconds() == 0 {
-		err = s.Repo.DumpMetrics(ctx, s.Cfg)
-		if err != nil {
-			log.Error().Err(err).Msg("can't store metric")
-			return nil, status.Error(codes.Internal, err.Error())
-		}
+		return nil, status.Error(errMapping(err), err.Error())
 	}
 	return &resp, nil
 }

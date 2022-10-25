@@ -6,14 +6,14 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/colzphml/yandex_project/internal/handlers"
+	"github.com/colzphml/yandex_project/internal/scenarios/handlers"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
 
 	"github.com/colzphml/yandex_project/internal/app/server/serverutils"
-	cgrpc "github.com/colzphml/yandex_project/internal/grpc"
 	pb "github.com/colzphml/yandex_project/internal/metrics/proto"
 	"github.com/colzphml/yandex_project/internal/middleware"
+	cgrpc "github.com/colzphml/yandex_project/internal/scenarios/grpc"
 	"github.com/colzphml/yandex_project/internal/storage"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
