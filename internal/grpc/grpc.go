@@ -9,6 +9,8 @@ import (
 	pb "github.com/colzphml/yandex_project/internal/metrics/proto"
 	"github.com/colzphml/yandex_project/internal/storage"
 	"github.com/rs/zerolog/log"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func ConvertGRPCtoMetric(in *pb.Metric) (metrics.Metrics, error) {
@@ -59,30 +61,25 @@ func (s *MetricsServer) Save(ctx context.Context, in *pb.SaveMetricRequest) (*pb
 	var resp pb.SaveMetricResponse
 	metric, err := ConvertGRPCtoMetric(in.Metric)
 	if err != nil {
-		resp.Error = err.Error()
-		return &resp, nil
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	compareHash, err := metric.CompareHash(s.Cfg.Key)
 	if err != nil {
-		resp.Error = err.Error()
-		return &resp, nil
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if !compareHash {
-		resp.Error = "signature is wrong"
-		return &resp, nil
+		return nil, status.Error(codes.Internal, "signature is wrong")
 	}
 	err = s.Repo.SaveMetric(ctx, metric)
 	if err != nil {
 		log.Error().Err(err).Str("can't save metric", metric.ID)
-		resp.Error = err.Error()
-		return &resp, nil
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if s.Cfg.StoreInterval.Nanoseconds() == 0 {
 		err = s.Repo.DumpMetrics(ctx, s.Cfg)
 		if err != nil {
 			log.Error().Err(err).Str("can't store metric", metric.ID)
-			resp.Error = err.Error()
-			return &resp, nil
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
 	return &resp, nil
@@ -94,34 +91,29 @@ func (s *MetricsServer) SaveList(ctx context.Context, in *pb.SaveListMetricsRequ
 	for _, v := range in.Metric {
 		m, err := ConvertGRPCtoMetric(v)
 		if err != nil {
-			resp.Error = err.Error()
-			return &resp, nil
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 		ms = append(ms, m)
 	}
 	for _, v := range ms {
 		compareHash, err := v.CompareHash(s.Cfg.Key)
 		if err != nil {
-			resp.Error = err.Error()
-			return &resp, nil
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 		if !compareHash {
-			resp.Error = "signature is wrong"
-			return &resp, nil
+			return nil, status.Error(codes.Internal, "signature is wrong")
 		}
 	}
 	_, err := s.Repo.SaveListMetric(ctx, ms)
 	if err != nil {
 		log.Error().Err(err).Msg("can't save metrics")
-		resp.Error = err.Error()
-		return &resp, nil
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if s.Cfg.StoreInterval.Nanoseconds() == 0 {
 		err = s.Repo.DumpMetrics(ctx, s.Cfg)
 		if err != nil {
 			log.Error().Err(err).Msg("can't store metric")
-			resp.Error = err.Error()
-			return &resp, nil
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
 	return &resp, nil
@@ -131,8 +123,7 @@ func (s *MetricsServer) Get(ctx context.Context, in *pb.GetMetricRequest) (*pb.G
 	var resp pb.GetMetricResponse
 	metricValue, err := s.Repo.GetValue(ctx, in.MetricName)
 	if err != nil {
-		resp.Error = err.Error()
-		return &resp, nil
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	resp.Metric = &pb.Metric{
 		Id:    metricValue.ID,

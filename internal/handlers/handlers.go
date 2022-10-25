@@ -20,6 +20,35 @@ import (
 
 var log = zerolog.New(serverutils.LogConfig()).With().Timestamp().Str("component", "handlers").Logger()
 
+type Handlers struct {
+	ctx                  context.Context
+	repo                 storage.Repositorier
+	cfg                  *serverutils.ServerConfig
+	SaveHandler          http.HandlerFunc
+	SaveJSONHandler      http.HandlerFunc
+	SaveJSONArrayHandler http.HandlerFunc
+	ListMetricsHandler   http.HandlerFunc
+	GetValueHandler      http.HandlerFunc
+	GetJSONValueHandler  http.HandlerFunc
+	PingHandler          http.HandlerFunc
+}
+
+func New(ctx context.Context, repo storage.Repositorier, cfg *serverutils.ServerConfig) *Handlers {
+	result := &Handlers{
+		ctx:                  ctx,
+		repo:                 repo,
+		cfg:                  cfg,
+		SaveHandler:          SaveHandler(ctx, repo, cfg),
+		SaveJSONHandler:      SaveJSONHandler(ctx, repo, cfg),
+		SaveJSONArrayHandler: SaveJSONArrayHandler(ctx, repo, cfg),
+		ListMetricsHandler:   ListMetricsHandler(ctx, repo, cfg),
+		GetValueHandler:      GetValueHandler(ctx, repo, cfg),
+		GetJSONValueHandler:  GetJSONValueHandler(ctx, repo, cfg),
+		PingHandler:          PingHandler(ctx, repo, cfg),
+	}
+	return result
+}
+
 // SaveHandler - хэндлер, сохраняющий метрику из URL.
 //
 // POST [/update/{metric_type}/{metric_name}/{metric_value}].
@@ -161,7 +190,7 @@ func ListMetricsHandler(ctx context.Context, repo storage.Repositorier, cfg *ser
 // GetValueHandler - возвращает значение метрики для запрошенного имени.
 //
 // GET [/value/{metric_type}/{metric_name}].
-func GetValueHandler(ctx context.Context, repo storage.Repositorier) http.HandlerFunc {
+func GetValueHandler(ctx context.Context, repo storage.Repositorier, cfg *serverutils.ServerConfig) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		mName := chi.URLParam(r, "metric_name")
 		mType := chi.URLParam(r, "metric_type")

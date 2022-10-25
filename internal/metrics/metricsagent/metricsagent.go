@@ -316,13 +316,10 @@ func SendGRPC(ctx context.Context, cfg *agentutils.AgentConfig, repo *MetricRepo
 	req.Metric = result
 	md := metadata.New(map[string]string{"X-Real-IP": agentutils.GetLocalIP()})
 	ctx = metadata.NewOutgoingContext(ctx, md)
-	resp, err := conn.SaveList(ctx, &req)
+	_, err := conn.SaveList(ctx, &req)
 	if err != nil {
 		log.Error().Err(err).Msg("failed send via grpc")
 		return
-	}
-	if resp.Error != "" {
-		log.Error().Msg(resp.Error)
 	}
 }
 

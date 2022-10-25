@@ -5,6 +5,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -50,6 +51,7 @@ func main() {
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	srv := server.HTTPServer(ctx, cfg, repo)
 	grpcsrv := server.GRPCServer(ctx, cfg, repo)
+	wg := &sync.WaitGroup{}
 Loop:
 	for {
 		select {
@@ -62,17 +64,22 @@ Loop:
 		case <-sigChan:
 			ctxcancel, cancel := context.WithTimeout(ctx, 5*time.Second)
 			defer func() {
-				grpcsrv.Stop()
-				log.Info().Msg("grpc stopped")
 				repo.DumpMetrics(ctx, cfg)
 				log.Info().Msg("metrics stored")
 				repo.Close()
 				tickerSave.Stop()
 				cancel()
 			}()
+			wg.Add(1)
+			go func() {
+				grpcsrv.GracefulStop()
+				log.Info().Msg("grpc stopped")
+				wg.Done()
+			}()
 			if err := srv.Shutdown(ctxcancel); err != nil {
 				log.Error().Err(err).Msg("failed shutdown server")
 			}
+			wg.Wait()
 			log.Info().Msg("server stopped")
 			break Loop
 		}

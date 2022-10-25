@@ -16,17 +16,13 @@ message SaveMetricRequest {
     Metric metric = 1;
 }
 
-message SaveMetricResponse {
-    string error = 1;
-}
+message SaveMetricResponse {}
 
 message SaveListMetricsRequest {
     repeated Metric metric = 1;
 }
 
-message SaveListMetricsResponse {
-    string error = 1;
-}
+message SaveListMetricsResponse {}
 
 message GetMetricRequest {
     string metricName = 1;
@@ -34,7 +30,6 @@ message GetMetricRequest {
 
 message GetMetricResponse {
     Metric metric = 1;
-    string error = 2;
 }
 
 message GetListMetricRequest {}
