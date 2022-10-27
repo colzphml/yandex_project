@@ -13,7 +13,7 @@ package main
 import (
 	"strings"
 
-	"github.com/colzphml/yandex_project/internal/analyzer"
+	"github.com/colzphml/yandex_project/internal/app/analyzer"
 	"github.com/fatih/errwrap/errwrap"
 	"github.com/maratori/testableexamples/pkg/testableexamples"
 	"golang.org/x/tools/go/analysis"

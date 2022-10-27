@@ -11,6 +11,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -24,13 +25,14 @@ var log = zerolog.New(LogConfig()).With().Timestamp().Str("component", "agentuti
 
 // AgentConfig - конфигурация агента для старта.
 type AgentConfig struct {
-	Metrics        map[string]string // Описание метрик, собираемых из runtime
-	Key            string            `env:"KEY"`                    // Ключ для подписи данных
-	ServerAddress  string            `env:"ADDRESS" json:"address"` // Адрес сервера обработки метрик
-	ConfigFile     string            `env:"CONFIG"`                 // Адрес файла конфигурации в формате JSON
-	PollInterval   time.Duration     `env:"POLL_INTERVAL"`          // Интервал сбора метрик агентом
-	ReportInterval time.Duration     `env:"REPORT_INTERVAL"`        // Интервал отправки данных на сервер
-	PublicKey      *rsa.PublicKey    // Публичный ключ
+	Metrics           map[string]string // Описание метрик, собираемых из runtime
+	Key               string            `env:"KEY"`                              // Ключ для подписи данных
+	ServerAddress     string            `env:"ADDRESS" json:"address"`           // Адрес сервера обработки метрик
+	ServerAddressGRPC string            `env:"ADDRESS_GRPC" json:"address_grpc"` // Адрес, по которому будут доступны endpoints
+	ConfigFile        string            `env:"CONFIG"`                           // Адрес файла конфигурации в формате JSON
+	PollInterval      time.Duration     `env:"POLL_INTERVAL"`                    // Интервал сбора метрик агентом
+	ReportInterval    time.Duration     `env:"REPORT_INTERVAL"`                  // Интервал отправки данных на сервер
+	PublicKey         *rsa.PublicKey    // Публичный ключ
 }
 
 func (cfg *AgentConfig) UnmarshalJSON(data []byte) error {
@@ -166,6 +168,12 @@ func (cfg *AgentConfig) flagsRead() {
 		}
 		return nil
 	})
+	flag.Func("g", "server gRPC address like <server>:<port>, example: -a \"127.0.0.1:8080\"", func(flagValue string) error {
+		if flagValue != "" {
+			cfg.ServerAddressGRPC = flagValue
+		}
+		return nil
+	})
 	flag.Parse()
 }
 
@@ -231,6 +239,7 @@ func HTTPSend(client *http.Client, url string) error {
 		return err
 	}
 	request.Header.Set("Content-Type", "text/plain")
+	request.Header.Set("X-Real-IP", GetLocalIP())
 	response, err := client.Do(request)
 	if err != nil {
 		return err
@@ -247,6 +256,7 @@ func HTTPSendJSON(client *http.Client, url string, postBody []byte) error {
 		return err
 	}
 	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-Real-IP", GetLocalIP())
 	response, err := client.Do(request)
 	if err != nil {
 		return err
@@ -281,4 +291,19 @@ func getPublicKey(file string) (*rsa.PublicKey, error) {
 		return nil, err
 	}
 	return pk, nil
+}
+
+func GetLocalIP() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return ""
+	}
+	for _, address := range addrs {
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP.String()
+			}
+		}
+	}
+	return ""
 }

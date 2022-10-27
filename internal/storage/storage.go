@@ -5,8 +5,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/colzphml/yandex_project/internal/app/server/serverutils"
 	"github.com/colzphml/yandex_project/internal/metrics"
-	"github.com/colzphml/yandex_project/internal/serverutils"
 	"github.com/colzphml/yandex_project/internal/storage/dbrepo"
 	"github.com/colzphml/yandex_project/internal/storage/filerepo"
 	"github.com/rs/zerolog"
@@ -18,7 +18,7 @@ var log = zerolog.New(serverutils.LogConfig()).With().Timestamp().Str("component
 type Repositorier interface {
 	SaveMetric(ctx context.Context, metric metrics.Metrics) error               // Сохранение отдельной метрики
 	SaveListMetric(ctx context.Context, metrics []metrics.Metrics) (int, error) // Сохранение массива метрик
-	ListMetrics(ctx context.Context) []string                                   // Получение списка метрик и их значений
+	ListMetrics(ctx context.Context) []metrics.Metrics                          // Получение списка метрик и их значений
 	GetValue(ctx context.Context, metricName string) (metrics.Metrics, error)   // Получает метрику по ее имени из хранилища
 	DumpMetrics(ctx context.Context, cfg *serverutils.ServerConfig) error       // Сохранение метрик из локальной памяти
 	Close()                                                                     // Закрытие хранилища

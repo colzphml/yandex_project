@@ -12,7 +12,15 @@ require (
 	github.com/shirou/gopsutil/v3 v3.22.9
 	github.com/stretchr/testify v1.8.0
 	golang.org/x/tools v0.1.12
+	google.golang.org/grpc v1.50.1
+	google.golang.org/protobuf v1.28.1
 	honnef.co/go/tools v0.3.3
+)
+
+require (
+	github.com/golang/protobuf v1.5.2 // indirect
+	golang.org/x/net v0.0.0-20220722155237-a158d28d115b // indirect
+	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
 )
 
 require (

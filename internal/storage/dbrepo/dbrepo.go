@@ -7,8 +7,8 @@ import (
 	"errors"
 	"sort"
 
+	"github.com/colzphml/yandex_project/internal/app/server/serverutils"
 	"github.com/colzphml/yandex_project/internal/metrics"
-	"github.com/colzphml/yandex_project/internal/serverutils"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/rs/zerolog"
@@ -171,8 +171,8 @@ func (m *MetricRepo) SaveListMetric(ctx context.Context, metricarray []metrics.M
 	return counter, nil
 }
 
-func (m *MetricRepo) ListMetrics(ctx context.Context) []string {
-	var list []string
+func (m *MetricRepo) ListMetrics(ctx context.Context) []metrics.Metrics {
+	var list []metrics.Metrics
 	sqlBytes, err := SQL.ReadFile("sql/SQLSelectAllValues.sql")
 	if err != nil {
 		return nil
@@ -190,14 +190,14 @@ func (m *MetricRepo) ListMetrics(ctx context.Context) []string {
 			log.Error().Err(err).Msg("scan error for list metrics")
 			continue
 		}
-		list = append(list, metric.ID+":"+metric.ValueString())
+		list = append(list, metric)
 	}
 	err = rows.Err()
 	if err != nil {
 		log.Error().Err(err).Msg("error in scan multiple values of metrics")
 	}
 	sort.Slice(list, func(i, j int) bool {
-		return list[i] < list[j]
+		return list[i].ID < list[j].ID
 	})
 	return list
 }

@@ -9,12 +9,12 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/colzphml/yandex_project/internal/handlers"
-	mdw "github.com/colzphml/yandex_project/internal/middleware"
-	"github.com/colzphml/yandex_project/internal/serverutils"
+	"github.com/colzphml/yandex_project/internal/app/server/serverutils"
+	"github.com/colzphml/yandex_project/internal/middleware"
+	"github.com/colzphml/yandex_project/internal/scenarios/handlers"
 	"github.com/colzphml/yandex_project/internal/storage"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 )
 
 type Metrics struct {
@@ -81,19 +81,24 @@ func HTTPSendJSON(client *http.Client, url string, postBody []byte) ([]byte, err
 }
 
 func HTTPServer(ctx context.Context, cfg *serverutils.ServerConfig, repo storage.Repositorier) *http.Server {
+	h := handlers.New(ctx, repo, cfg)
 	r := chi.NewRouter()
-	r.Use(mdw.GzipHandle)
-	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
-	r.Post("/update/{metric_type}/{metric_name}/{metric_value}", handlers.SaveHandler(ctx, repo, cfg))
-	r.Get("/value/{metric_type}/{metric_name}", handlers.GetValueHandler(ctx, repo))
-	r.Post("/update/", handlers.SaveJSONHandler(ctx, repo, cfg))
-	r.Post("/updates/", handlers.SaveJSONArrayHandler(ctx, repo, cfg))
-	r.Post("/value/", handlers.GetJSONValueHandler(ctx, repo, cfg))
-	r.Get("/ping", handlers.PingHandler(ctx, repo, cfg))
-	r.Get("/", handlers.ListMetricsHandler(ctx, repo, cfg))
+	r.Use(middleware.GzipHandle)
+	r.Use(middleware.SubNet(cfg))
+	r.Use(chimiddleware.RequestID)
+	r.Use(chimiddleware.RealIP)
+	r.Use(chimiddleware.Logger)
+	r.Use(chimiddleware.Recoverer)
+	r.Post("/update/{metric_type}/{metric_name}/{metric_value}", h.SaveHandler)
+	r.Get("/value/{metric_type}/{metric_name}", h.GetValueHandler)
+	r.Route("/update", func(r chi.Router) {
+		r.Use(middleware.RSAHandler(cfg))
+		r.Post("/", h.SaveJSONHandler)
+	})
+	r.Post("/updates/", h.SaveJSONArrayHandler)
+	r.Post("/value/", h.GetJSONValueHandler)
+	r.Get("/ping", h.PingHandler)
+	r.Get("/", h.ListMetricsHandler)
 	srv := &http.Server{
 		Addr:    cfg.ServerAddress,
 		Handler: r,

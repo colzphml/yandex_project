@@ -17,11 +17,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/colzphml/yandex_project/internal/agentutils"
+	"github.com/colzphml/yandex_project/internal/app/agent/agentutils"
 	"github.com/colzphml/yandex_project/internal/metrics"
+	pb "github.com/colzphml/yandex_project/internal/metrics/proto"
+	cgrpc "github.com/colzphml/yandex_project/internal/scenarios/grpc"
 	"github.com/rs/zerolog"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 )
 
 // MetricRepo - хранилище метрик для сбора (потокобезопасное, так как есть 2 независимых коллектора - Runtime и System).
@@ -299,14 +304,45 @@ func SendListJSONMetrics(cfg *agentutils.AgentConfig, repo *MetricRepo, client *
 	}
 }
 
+func SendGRPC(ctx context.Context, cfg *agentutils.AgentConfig, repo *MetricRepo, conn pb.MetricsClient) {
+	var result []*pb.Metric
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
+	for _, v := range repo.db {
+		v.FillHash(cfg.Key)
+		result = append(result, cgrpc.ConvertMetrictoGRPC(v))
+	}
+	var req pb.SaveListMetricsRequest
+	req.Metric = result
+	md := metadata.New(map[string]string{"X-Real-IP": agentutils.GetLocalIP()})
+	ctx = metadata.NewOutgoingContext(ctx, md)
+	_, err := conn.SaveList(ctx, &req)
+	if err != nil {
+		log.Error().Err(err).Msg("failed send via grpc")
+		return
+	}
+}
+
 // SendWorker - воркер, который отправляет собранные на текущий момент метрики на сервер. Отвечает за отправку метрик и штатное завершение потока при остановке работы.
 func SendWorker(ctx context.Context, wg *sync.WaitGroup, cfg *agentutils.AgentConfig, repo *MetricRepo) {
 	tickerReport := time.NewTicker(cfg.ReportInterval)
 	client := &http.Client{}
+	var conn pb.MetricsClient
+	if cfg.ServerAddressGRPC != "" {
+		grpcconn, err := grpc.Dial(cfg.ServerAddressGRPC, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed initialize server")
+		}
+		conn = pb.NewMetricsClient(grpcconn)
+	}
 	for {
 		select {
 		case <-tickerReport.C:
-			SendJSONMetrics(cfg, repo, client)
+			if cfg.ServerAddressGRPC != "" {
+				SendGRPC(ctx, cfg, repo, conn)
+			} else {
+				SendJSONMetrics(cfg, repo, client)
+			}
 			// SendListJSONMetrics(cfg, repo, client)
 		case <-ctx.Done():
 			tickerReport.Stop()

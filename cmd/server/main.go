@@ -2,21 +2,16 @@ package main
 
 import (
 	"context"
-	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
-	"github.com/colzphml/yandex_project/internal/handlers"
-
-	//"middleware" используется в 2 пакетах, потому для собственного алиас
-	mdw "github.com/colzphml/yandex_project/internal/middleware"
-	"github.com/colzphml/yandex_project/internal/serverutils"
+	"github.com/colzphml/yandex_project/internal/app/server"
+	"github.com/colzphml/yandex_project/internal/app/server/serverutils"
 	"github.com/colzphml/yandex_project/internal/storage"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rs/zerolog"
 )
 
@@ -26,35 +21,6 @@ var (
 	buildCommit  string = "N/A"
 	log                 = zerolog.New(serverutils.LogConfig()).With().Timestamp().Str("component", "server").Logger()
 )
-
-func HTTPServer(ctx context.Context, cfg *serverutils.ServerConfig, repo storage.Repositorier) *http.Server {
-	r := chi.NewRouter()
-	r.Use(mdw.GzipHandle)
-	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
-	r.Post("/update/{metric_type}/{metric_name}/{metric_value}", handlers.SaveHandler(ctx, repo, cfg))
-	r.Get("/value/{metric_type}/{metric_name}", handlers.GetValueHandler(ctx, repo))
-	r.Route("/update", func(r chi.Router) {
-		r.Use(mdw.RSAHandler(cfg))
-		r.Post("/", handlers.SaveJSONHandler(ctx, repo, cfg))
-	})
-	r.Post("/updates/", handlers.SaveJSONArrayHandler(ctx, repo, cfg))
-	r.Post("/value/", handlers.GetJSONValueHandler(ctx, repo, cfg))
-	r.Get("/ping", handlers.PingHandler(ctx, repo, cfg))
-	r.Get("/", handlers.ListMetricsHandler(ctx, repo, cfg))
-	srv := &http.Server{
-		Addr:    cfg.ServerAddress,
-		Handler: r,
-	}
-	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal().Err(err).Msg("failed initialize server")
-		}
-	}()
-	return srv
-}
 
 func main() {
 	/*
@@ -83,7 +49,9 @@ func main() {
 	//для "штатного" завершения сервера
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
-	srv := HTTPServer(ctx, cfg, repo)
+	srv := server.HTTPServer(ctx, cfg, repo)
+	grpcsrv := server.GRPCServer(ctx, cfg, repo)
+	wg := &sync.WaitGroup{}
 Loop:
 	for {
 		select {
@@ -102,9 +70,16 @@ Loop:
 				tickerSave.Stop()
 				cancel()
 			}()
+			wg.Add(1)
+			go func() {
+				grpcsrv.GracefulStop()
+				log.Info().Msg("grpc stopped")
+				wg.Done()
+			}()
 			if err := srv.Shutdown(ctxcancel); err != nil {
 				log.Error().Err(err).Msg("failed shutdown server")
 			}
+			wg.Wait()
 			log.Info().Msg("server stopped")
 			break Loop
 		}
